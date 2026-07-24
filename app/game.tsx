@@ -66,6 +66,14 @@ type Invader = {
   cityDamage?: number;
 };
 
+type WaveAnnouncement = {
+  wave: number;
+  total: number;
+  roster: { invader: Invader; count: number }[];
+  earlyBonus: number;
+  expiresAt: number;
+};
+
 type Game = {
   gold: number;
   health: number;
@@ -90,6 +98,7 @@ type Game = {
   route: Point[];
   nextWaveIn: number;
   wavePeriod: number;
+  waveAnnouncement: WaveAnnouncement | null;
 };
 
 const BLIGHTLINGS: Invader[] = [
@@ -285,6 +294,7 @@ function createGame(seed = newSeed()): Game {
     route: createPath(towers, rng, false) ?? [],
     nextWaveIn: 30,
     wavePeriod: 30,
+    waveAnnouncement: null,
   };
 }
 
@@ -318,6 +328,12 @@ function makeWave(game: Game) {
 function queueNextWave(game: Game, earlyBonus = 0) {
   game.wave += 1;
   const wave = makeWave(game);
+  const counts = new Map<string, { invader: Invader; count: number }>();
+  for (const invader of wave) {
+    const existing = counts.get(invader.name);
+    if (existing) existing.count += 1;
+    else counts.set(invader.name, { invader, count: 1 });
+  }
   game.waveQueue.push(...wave);
   game.spawnInterval = Math.max(0.2, 0.5 - game.wave * 0.007);
   game.spawnClock = Math.min(game.spawnClock, 0);
@@ -329,6 +345,13 @@ function queueNextWave(game: Game, earlyBonus = 0) {
     ? `Wave ${game.wave} called early — +${earlyBonus} gold!`
     : `Wave ${game.wave}: ${wave.length} Blightlings spilled from the rift.`;
   game.messageUntil = game.elapsed + 4;
+  game.waveAnnouncement = {
+    wave: game.wave,
+    total: wave.length,
+    roster: [...counts.values()],
+    earlyBonus,
+    expiresAt: Date.now() + 2600,
+  };
 }
 
 function rerouteEnemies(game: Game) {
@@ -1176,6 +1199,10 @@ export default function NatureDefenseGame() {
     : undefined;
   const nextInvaders = useMemo(() => upcomingInvaders(game.wave), [game.wave]);
   const rushBonus = Math.max(1, Math.ceil(game.nextWaveIn));
+  const waveAnnouncement =
+    game.waveAnnouncement && game.waveAnnouncement.expiresAt > Date.now()
+      ? game.waveAnnouncement
+      : null;
 
   return (
     <main className="game-shell">
@@ -1308,6 +1335,30 @@ export default function NatureDefenseGame() {
                 ))}
               </div>
             </div>
+
+            {waveAnnouncement ? (
+              <div
+                key={waveAnnouncement.wave}
+                className="wave-announcement"
+                role="status"
+                aria-live="assertive"
+              >
+                <p>The rift stirs</p>
+                <h2>Wave {waveAnnouncement.wave}</h2>
+                <strong>{waveAnnouncement.total} creatures incoming</strong>
+                <div className="wave-roster">
+                  {waveAnnouncement.roster.map(({ invader, count }) => (
+                    <span key={invader.name}>
+                      <img src={invaderImagePath(invader)} alt="" />
+                      <b>{count}×</b> {invader.name}
+                    </span>
+                  ))}
+                </div>
+                {waveAnnouncement.earlyBonus > 0 ? (
+                  <small>Early call bonus +{waveAnnouncement.earlyBonus} gold</small>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="guardian-dock" aria-label="Guardian build shortcuts">
               <span className="dock-label">Guardians</span>

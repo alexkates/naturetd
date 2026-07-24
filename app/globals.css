@@ -963,6 +963,112 @@ body {
   image-rendering: pixelated;
 }
 
+.wave-announcement {
+  position: absolute;
+  z-index: 14;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(510px, calc(100% - 40px));
+  gap: 5px;
+  justify-items: center;
+  padding: 18px 22px;
+  border: 2px solid rgba(112, 75, 137, 0.78);
+  border-radius: 18px;
+  color: #493653;
+  background:
+    radial-gradient(circle at top, rgba(255, 245, 153, 0.55), transparent 56%),
+    rgba(255, 250, 240, 0.96);
+  box-shadow:
+    0 22px 60px rgba(37, 23, 46, 0.38),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.46);
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  animation: wave-arrival 2.6s ease both;
+  backdrop-filter: blur(10px);
+}
+
+.wave-announcement p,
+.wave-announcement h2,
+.wave-announcement strong {
+  margin: 0;
+}
+
+.wave-announcement p {
+  color: #86619f;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.wave-announcement h2 {
+  color: #4b315a;
+  font-size: clamp(28px, 4.4vw, 44px);
+  line-height: 0.95;
+}
+
+.wave-announcement > strong {
+  color: #745c7f;
+  font-size: 11px;
+}
+
+.wave-roster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.wave-roster span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px 4px 4px;
+  border: 1px solid #d4c2df;
+  border-radius: 999px;
+  background: #fffdf7;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.wave-roster img {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #d8ef9a;
+  image-rendering: pixelated;
+}
+
+.wave-roster b {
+  color: #7b4c92;
+}
+
+.wave-announcement small {
+  color: #a76b13;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+@keyframes wave-arrival {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.86);
+  }
+  12%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -54%) scale(0.98);
+  }
+}
+
 .guardian-dock {
   bottom: 12px;
   left: 12px;

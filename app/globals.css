@@ -1090,7 +1090,7 @@ body {
 
 .canvas-stage {
   --board-top-gutter: 48px;
-  --board-bottom-gutter: 62px;
+  --board-bottom-gutter: 90px;
   position: relative;
   box-sizing: content-box;
   width: min(
@@ -1122,56 +1122,6 @@ body {
 .canvas-stage canvas {
   width: 100%;
   height: 100%;
-}
-
-.terrain-key {
-  position: absolute;
-  z-index: 7;
-  top: 8px;
-  left: 8px;
-  display: grid;
-  gap: 3px;
-  pointer-events: none;
-}
-
-.terrain-key > span {
-  display: grid;
-  grid-template-columns: 11px auto;
-  width: max-content;
-  max-width: 180px;
-  column-gap: 5px;
-  align-items: center;
-  padding: 3px 7px 3px 5px;
-  border: 1px solid rgba(31, 55, 34, .28);
-  border-radius: 7px;
-  color: #f8f1d8;
-  background: rgba(30, 50, 34, .78);
-  box-shadow: 0 3px 10px rgba(18, 29, 20, .2);
-  backdrop-filter: blur(4px);
-}
-
-.terrain-key i {
-  grid-row: 1 / 3;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #76984b;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .2);
-}
-
-.terrain-key i.pond { background: #4c9fa8; }
-.terrain-key i.grove { background: #244f37; }
-.terrain-key i.crag { background: #85828a; border-radius: 2px; transform: rotate(45deg); }
-
-.terrain-key b {
-  font-size: 8px;
-  line-height: 1;
-}
-
-.terrain-key small {
-  color: #dbe2bc;
-  font-size: 7px;
-  line-height: 1.1;
 }
 
 .canvas-stage canvas.building {
@@ -1417,8 +1367,8 @@ body {
   left: 8px;
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px;
+  gap: 7px;
+  padding: 6px;
   border-radius: 14px;
 }
 
@@ -1436,13 +1386,13 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 2px;
-  width: 132px;
-  min-width: 132px;
-  height: 58px;
-  padding: 4px 7px 4px 4px;
+  gap: 8px;
+  width: 156px;
+  min-width: 156px;
+  height: 68px;
+  padding: 7px 10px 7px 7px;
   border: 1px solid #d4c2df;
-  border-radius: 9px;
+  border-radius: 11px;
   color: #5c456a;
   background: #fffdf7;
 }
@@ -1461,29 +1411,29 @@ body {
 .dock-art {
   position: relative;
   display: block;
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
 }
 
 .dock-art img {
   position: absolute;
   inset: 0;
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
   object-fit: contain;
   image-rendering: pixelated;
 }
 
 .dock-art img:last-child {
   inset: auto 0 0 auto;
-  width: 20px;
-  height: 20px;
+  width: 23px;
+  height: 23px;
 }
 
 .dock-copy {
   display: grid;
   min-width: 0;
-  gap: 1px;
+  gap: 3px;
   text-align: left;
 }
 
@@ -1495,7 +1445,7 @@ body {
 }
 
 .dock-copy strong {
-  line-height: 1.05;
+  line-height: 1.15;
 }
 
 .dock-copy em {
@@ -1503,7 +1453,7 @@ body {
   color: #75677d;
   font-size: 8px;
   font-style: normal;
-  line-height: 1.15;
+  line-height: 1.25;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -1657,14 +1607,6 @@ body {
 
 .tower-popover strong {
   font-size: 11px;
-}
-
-.tower-popover .terrain-bonus {
-  padding: 4px 6px;
-  border-radius: 6px;
-  color: #426237;
-  background: #e9f2bc;
-  font-weight: 800;
 }
 
 .tower-popover > span {
@@ -2128,7 +2070,7 @@ body {
 
   .canvas-stage {
     --board-top-gutter: 44px;
-    --board-bottom-gutter: 58px;
+    --board-bottom-gutter: 88px;
     width: 100%;
     aspect-ratio: 12 / 7;
   }
@@ -2141,15 +2083,6 @@ body {
     display: none;
   }
 
-  .terrain-key small {
-    display: none;
-  }
-
-  .terrain-key > span {
-    grid-template-columns: 9px auto;
-    padding: 3px 5px;
-  }
-
   .guardian-dock {
     bottom: 8px;
     left: 8px;
@@ -2160,8 +2093,8 @@ body {
   }
 
   .guardian-dock button {
-    width: 116px;
-    min-width: 116px;
+    width: 134px;
+    min-width: 134px;
   }
 
   .hotkey-strip {
@@ -2248,13 +2181,18 @@ body {
     width: auto;
     min-width: 0;
     flex: 1 1 0;
-    gap: 3px;
-    padding-right: 3px;
+    gap: 5px;
+    padding: 5px;
   }
 
   .dock-art {
     width: 28px;
     height: 28px;
+  }
+
+  .guardian-dock {
+    gap: 4px;
+    padding: 4px;
   }
 
   .dock-art img {

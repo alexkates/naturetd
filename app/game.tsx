@@ -19,6 +19,19 @@ const CITY = { x: 19, y: 5 };
 type Point = { x: number; y: number };
 type TowerKind = "thorn" | "frost" | "boulder" | "lightning";
 type SpellKind = "solar" | "ice" | "tornado" | "bloom";
+type BuffKind =
+  | "sunseed"
+  | "threeSeed"
+  | "shatterfrost"
+  | "longWinter"
+  | "faultline"
+  | "aftershock"
+  | "echoHowl"
+  | "packCircuit"
+  | "ancientSap"
+  | "tailwind"
+  | "longRoots"
+  | "gildedPollen";
 type Phase = "intermission" | "wave" | "gameover";
 
 type Tower = {
@@ -140,6 +153,9 @@ type Game = {
   spellCharges: Record<SpellKind, number>;
   spellEffects: SpellEffect[];
   spellsCast: number;
+  buffs: BuffKind[];
+  pendingBuffChoices: BuffKind[] | null;
+  bossesDefeated: number;
 };
 
 const BLIGHTLINGS: Invader[] = [
@@ -273,6 +289,99 @@ const SPELL_DATA: Record<SpellKind, {
   },
 };
 const SPELL_ORDER = Object.keys(SPELL_DATA) as SpellKind[];
+const BUFF_DATA: Record<BuffKind, {
+  name: string;
+  icon: string;
+  family: string;
+  description: string;
+  color: string;
+}> = {
+  sunseed: {
+    name: "Sunseed Lullaby",
+    icon: "✦",
+    family: "Chickadee mutation",
+    description: "Chickadee hits gain a 20% chance to stun for 1 second.",
+    color: "#e7d45d",
+  },
+  threeSeed: {
+    name: "Three-Seed Salute",
+    icon: "⁂",
+    family: "Chickadee mutation",
+    description: "18% of Chickadee attacks strike three times.",
+    color: "#c8e85e",
+  },
+  shatterfrost: {
+    name: "Shatterfrost",
+    icon: "❉",
+    family: "Foxglove mutation",
+    description: "Foxglove attacks splash 70% damage and slow nearby Blightlings.",
+    color: "#79dcf4",
+  },
+  longWinter: {
+    name: "The Long Winter",
+    icon: "❄",
+    family: "Foxglove mutation",
+    description: "Foxglove slows become much stronger and last 1.5 seconds longer.",
+    color: "#a6eaff",
+  },
+  faultline: {
+    name: "Faultline Pollen",
+    icon: "◆",
+    family: "Boarstone mutation",
+    description: "Boarstone impact radius grows by 0.75 tiles.",
+    color: "#eca55e",
+  },
+  aftershock: {
+    name: "Aftershock Acorns",
+    icon: "✹",
+    family: "Boarstone mutation",
+    description: "Boarstone impacts deal 40% more damage.",
+    color: "#d9864f",
+  },
+  echoHowl: {
+    name: "Echo Howl",
+    icon: "◒",
+    family: "Wolfwood mutation",
+    description: "Wolfwood has a 25% chance to cast its full chain twice.",
+    color: "#f4da5d",
+  },
+  packCircuit: {
+    name: "Pack Circuit",
+    icon: "ϟ",
+    family: "Wolfwood mutation",
+    description: "Wolfwood lightning gains two extra chain targets.",
+    color: "#ffd96b",
+  },
+  ancientSap: {
+    name: "Ancient Sap",
+    icon: "⬙",
+    family: "Grove blessing",
+    description: "All guardians deal 22% more damage.",
+    color: "#9fd36b",
+  },
+  tailwind: {
+    name: "Tailwind Chorus",
+    icon: "≈",
+    family: "Grove blessing",
+    description: "All guardians attack 15% faster.",
+    color: "#b8e6c0",
+  },
+  longRoots: {
+    name: "Long-Reaching Roots",
+    icon: "⌁",
+    family: "Grove blessing",
+    description: "All guardians gain 0.45 tiles of range.",
+    color: "#79c982",
+  },
+  gildedPollen: {
+    name: "Gilded Pollen",
+    icon: "✺",
+    family: "Grove blessing",
+    description: "Every Blightling bounty is worth 30% more gold.",
+    color: "#f1bd54",
+  },
+};
+const BUFF_ORDER = Object.keys(BUFF_DATA) as BuffKind[];
 const NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
 const INTRO_STORAGE_KEY = "nature-defense-intro-v1";
 const INTRO_STEPS = [
@@ -437,6 +546,9 @@ function createGame(seed = newSeed()): Game {
     spellCharges: { solar: 0, ice: 0, tornado: 0, bloom: 0 },
     spellEffects: [],
     spellsCast: 0,
+    buffs: [],
+    pendingBuffChoices: null,
+    bossesDefeated: 0,
   };
 }
 
@@ -450,13 +562,40 @@ function upgradeCost(tower: Tower) {
   );
 }
 
-function towerStats(tower: Tower) {
+function buffRank(game: Game, kind: BuffKind) {
+  return game.buffs.filter((buff) => buff === kind).length;
+}
+
+function offerBuffChoices(game: Game) {
+  const unseen = BUFF_ORDER.filter((kind) => buffRank(game, kind) === 0);
+  const seen = BUFF_ORDER.filter((kind) => buffRank(game, kind) > 0);
+  for (let index = unseen.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(game.rng() * (index + 1));
+    [unseen[index], unseen[swap]] = [unseen[swap], unseen[index]];
+  }
+  for (let index = seen.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(game.rng() * (index + 1));
+    [seen[index], seen[swap]] = [seen[swap], seen[index]];
+  }
+  const pool = unseen.length ? [...unseen, ...seen] : seen;
+  game.pendingBuffChoices = pool.slice(0, 3);
+  game.paused = true;
+  game.bossesDefeated += 1;
+}
+
+function towerStats(tower: Tower, game: Game) {
   const base = TOWER_DATA[tower.kind];
   const steps = tower.level - 1;
   return {
-    damage: base.damage * (1 + steps * 0.75),
-    rate: base.rate * (1 + steps * 0.12),
-    range: base.range,
+    damage:
+      base.damage *
+      (1 + steps * 0.75) *
+      (1 + buffRank(game, "ancientSap") * 0.22),
+    rate:
+      base.rate *
+      (1 + steps * 0.12) *
+      (1 + buffRank(game, "tailwind") * 0.15),
+    range: base.range + buffRank(game, "longRoots") * 0.45,
   };
 }
 
@@ -659,8 +798,14 @@ export default function NatureDefenseGame() {
         enemy.dead = true;
         tower.kills += 1;
         game.kills += 1;
-        game.gold += enemy.bounty;
-        game.goldEarned += enemy.bounty;
+        const bounty = Math.round(
+          enemy.bounty * (1 + buffRank(game, "gildedPollen") * 0.3),
+        );
+        game.gold += bounty;
+        game.goldEarned += bounty;
+        if (enemy.invader === BOSS && !game.pendingBuffChoices) {
+          offerBuffChoices(game);
+        }
       }
     },
     [],
@@ -675,8 +820,14 @@ export default function NatureDefenseGame() {
       if (enemy.hp <= 0) {
         enemy.dead = true;
         game.kills += 1;
-        game.gold += enemy.bounty;
-        game.goldEarned += enemy.bounty;
+        const bounty = Math.round(
+          enemy.bounty * (1 + buffRank(game, "gildedPollen") * 0.3),
+        );
+        game.gold += bounty;
+        game.goldEarned += bounty;
+        if (enemy.invader === BOSS && !game.pendingBuffChoices) {
+          offerBuffChoices(game);
+        }
       }
     },
     [],
@@ -684,7 +835,7 @@ export default function NatureDefenseGame() {
 
   const fireTower = useCallback(
     (game: Game, gridPoint: Point, tower: Tower) => {
-      const stats = towerStats(tower);
+      const stats = towerStats(tower, game);
       const from = { x: gridPoint.x + 0.5, y: gridPoint.y + 0.5 };
       const candidates = game.enemies
         .filter(
@@ -703,13 +854,18 @@ export default function NatureDefenseGame() {
       const targetPoint = { x: target.x, y: target.y };
       const base = TOWER_DATA[tower.kind];
       if (tower.kind === "boulder") {
+        const radius =
+          1.02 +
+          tower.level * 0.12 +
+          buffRank(game, "faultline") * 0.75;
+        const damage =
+          stats.damage * (1 + buffRank(game, "aftershock") * 0.4);
         for (const enemy of game.enemies) {
           if (
             !enemy.dead &&
-            distance(targetPoint, { x: enemy.x, y: enemy.y }) <=
-              1.02 + tower.level * 0.12
+            distance(targetPoint, { x: enemy.x, y: enemy.y }) <= radius
           ) {
-            damageEnemy(game, enemy, stats.damage, tower);
+            damageEnemy(game, enemy, damage, tower);
           }
         }
         game.projectiles.push({
@@ -722,48 +878,74 @@ export default function NatureDefenseGame() {
           arc: true,
         });
       } else if (tower.kind === "lightning") {
-        const struck = new Set<number>();
-        let current: Enemy | null = target;
-        let chainFrom = from;
-        const chains = 1 + tower.level;
-        for (let index = 0; index < chains && current; index += 1) {
-          struck.add(current.id);
-          const currentPoint = { x: current.x, y: current.y };
+        const echoChance = Math.min(0.75, buffRank(game, "echoHowl") * 0.25);
+        const casts = game.rng() < echoChance ? 2 : 1;
+        for (let cast = 0; cast < casts; cast += 1) {
+          const struck = new Set<number>();
+          let current: Enemy | null = target.dead ? candidates.find((enemy) => !enemy.dead) ?? null : target;
+          let chainFrom = from;
+          const chains =
+            1 + tower.level + buffRank(game, "packCircuit") * 2;
+          for (let index = 0; index < chains && current; index += 1) {
+            struck.add(current.id);
+            const currentPoint = { x: current.x, y: current.y };
+            damageEnemy(
+              game,
+              current,
+              stats.damage * Math.pow(0.78, index),
+              tower,
+            );
+            game.projectiles.push({
+              from: chainFrom,
+              to: currentPoint,
+              color: base.color,
+              age: 0,
+              duration: 0.14,
+              width: cast === 0 ? 3 : 5,
+            });
+            chainFrom = currentPoint;
+            current =
+              game.enemies
+                .filter(
+                  (enemy) =>
+                    !enemy.dead &&
+                    !struck.has(enemy.id) &&
+                    distance(chainFrom, { x: enemy.x, y: enemy.y }) <=
+                      1.45 + tower.level * 0.12,
+                )
+                .sort(
+                  (a, b) =>
+                    distance(chainFrom, { x: a.x, y: a.y }) -
+                    distance(chainFrom, { x: b.x, y: b.y }),
+                )[0] ?? null;
+          }
+        }
+      } else if (tower.kind === "frost") {
+        const splashRank = buffRank(game, "shatterfrost");
+        const slowRank = buffRank(game, "longWinter");
+        const victims = splashRank
+          ? game.enemies.filter(
+              (enemy) =>
+                !enemy.dead &&
+                distance(targetPoint, { x: enemy.x, y: enemy.y }) <=
+                  1.05 + (splashRank - 1) * 0.15,
+            )
+          : [target];
+        for (const enemy of victims) {
           damageEnemy(
             game,
-            current,
-            stats.damage * Math.pow(0.78, index),
+            enemy,
+            enemy === target
+              ? stats.damage
+              : stats.damage * Math.min(1, 0.7 + (splashRank - 1) * 0.1),
             tower,
           );
-          game.projectiles.push({
-            from: chainFrom,
-            to: currentPoint,
-            color: base.color,
-            age: 0,
-            duration: 0.14,
-            width: 3,
-          });
-          chainFrom = currentPoint;
-          current =
-            game.enemies
-              .filter(
-                (enemy) =>
-                  !enemy.dead &&
-                  !struck.has(enemy.id) &&
-                  distance(chainFrom, { x: enemy.x, y: enemy.y }) <=
-                    1.45 + tower.level * 0.12,
-              )
-              .sort(
-                (a, b) =>
-                  distance(chainFrom, { x: a.x, y: a.y }) -
-                  distance(chainFrom, { x: b.x, y: b.y }),
-              )[0] ?? null;
-        }
-      } else {
-        damageEnemy(game, target, stats.damage, tower);
-        if (tower.kind === "frost") {
-          target.slowFactor = Math.max(0.45, 0.72 - tower.level * 0.08);
-          target.slowUntil = game.elapsed + 1.35 + tower.level * 0.35;
+          enemy.slowFactor = Math.max(
+            0.22,
+            0.72 - tower.level * 0.08 - slowRank * 0.17,
+          );
+          enemy.slowUntil =
+            game.elapsed + 1.35 + tower.level * 0.35 + slowRank * 1.5;
         }
         game.projectiles.push({
           from,
@@ -771,7 +953,26 @@ export default function NatureDefenseGame() {
           color: base.color,
           age: 0,
           duration: 0.17,
-          width: tower.kind === "frost" ? 4 : 2.5,
+          width: 4,
+        });
+      } else {
+        let hits = 1;
+        const volleyChance = Math.min(0.72, buffRank(game, "threeSeed") * 0.18);
+        if (game.rng() < volleyChance) hits = 3;
+        for (let hit = 0; hit < hits; hit += 1) {
+          damageEnemy(game, target, stats.damage, tower);
+        }
+        const stunChance = Math.min(0.8, buffRank(game, "sunseed") * 0.2);
+        if (!target.dead && game.rng() < stunChance) {
+          target.stunUntil = Math.max(target.stunUntil, game.elapsed + 1);
+        }
+        game.projectiles.push({
+          from,
+          to: targetPoint,
+          color: base.color,
+          age: 0,
+          duration: 0.17,
+          width: hits === 3 ? 5 : 2.5,
         });
       }
       return true;
@@ -923,7 +1124,7 @@ export default function NatureDefenseGame() {
         if (tower.cooldown > 0) continue;
         const [x, y] = key.split(",").map(Number);
         if (fireTower(game, { x, y }, tower)) {
-          tower.cooldown = 1 / towerStats(tower).rate;
+          tower.cooldown = 1 / towerStats(tower, game).rate;
         }
       }
 
@@ -1103,7 +1304,7 @@ export default function NatureDefenseGame() {
     if (selected && game.towers.has(keyOf(selected.x, selected.y))) {
       const tower = game.towers.get(keyOf(selected.x, selected.y));
       if (tower) {
-        const stats = towerStats(tower);
+        const stats = towerStats(tower, game);
         context.strokeStyle = TOWER_DATA[tower.kind].color;
         context.setLineDash([6, 5]);
         context.lineWidth = 2;
@@ -1312,7 +1513,7 @@ export default function NatureDefenseGame() {
   const selectSpell = useCallback(
     (kind: SpellKind) => {
       const game = gameRef.current;
-      if (game.phase === "gameover") return;
+      if (game.phase === "gameover" || game.pendingBuffChoices) return;
       const spell = SPELL_DATA[kind];
       if (selectedSpellRef.current === kind) {
         cancelSpell();
@@ -1557,7 +1758,7 @@ export default function NatureDefenseGame() {
 
   const startWave = useCallback(() => {
     const game = gameRef.current;
-    if (game.phase === "gameover") return;
+    if (game.phase === "gameover" || game.pendingBuffChoices) return;
     const chainActive = game.realElapsed - game.lastRushAt <= 4;
     const rushStreak = chainActive ? game.rushStreak + 1 : 1;
     const rushMultiplier = Math.min(2.5, 1 + (rushStreak - 1) * 0.25);
@@ -1588,6 +1789,21 @@ export default function NatureDefenseGame() {
     notify(`${TOWER_DATA[tower.kind].name} sold for ${formatNumber(tower.spent)} gold.`);
     refresh();
   }, [notify, refresh]);
+
+  const chooseBuff = useCallback(
+    (kind: BuffKind) => {
+      const game = gameRef.current;
+      if (!game.pendingBuffChoices?.includes(kind)) return;
+      game.buffs.push(kind);
+      game.pendingBuffChoices = null;
+      game.paused = false;
+      const rank = buffRank(game, kind);
+      game.message = `${BUFF_DATA[kind].name} joined your build${rank > 1 ? ` · rank ${rank}` : ""}.`;
+      game.messageUntil = game.elapsed + 4;
+      refresh();
+    },
+    [refresh],
+  );
 
   const upgradeSelected = useCallback(() => {
     const game = gameRef.current;
@@ -1797,6 +2013,7 @@ export default function NatureDefenseGame() {
         }
         return;
       }
+      if (gameRef.current.pendingBuffChoices) return;
       if (event.shiftKey && /^Digit[1-4]$/.test(event.code)) {
         event.preventDefault();
         selectSpell(SPELL_ORDER[Number(event.code.slice(-1)) - 1]);
@@ -2051,6 +2268,60 @@ export default function NatureDefenseGame() {
                 </div>
               ) : null}
 
+              {game.pendingBuffChoices ? (
+                <div className="buff-choice-overlay" role="dialog" aria-modal="true" aria-labelledby="buff-choice-title">
+                  <div className="buff-choice-heading">
+                    <span aria-hidden="true">♛</span>
+                    <div>
+                      <p>Grime King defeated</p>
+                      <h2 id="buff-choice-title">Choose a Grove Blessing</h2>
+                      <small>Permanent for this run · choose one</small>
+                    </div>
+                  </div>
+                  <div className="buff-card-grid">
+                    {game.pendingBuffChoices.map((kind) => {
+                      const buff = BUFF_DATA[kind];
+                      const nextRank = buffRank(game, kind) + 1;
+                      return (
+                        <button
+                          key={kind}
+                          onClick={() => chooseBuff(kind)}
+                          style={{ "--buff-color": buff.color } as React.CSSProperties}
+                        >
+                          <span className="buff-card-icon" aria-hidden="true">{buff.icon}</span>
+                          <span className="buff-card-family">{buff.family}</span>
+                          <strong>{buff.name}</strong>
+                          <p>{buff.description}</p>
+                          <small>{nextRank > 1 ? `Upgrade to rank ${nextRank}` : "Add to this run"}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
+              {game.buffs.length ? (
+                <aside className="buff-build" aria-label="Current Grove Blessings">
+                  <strong>Grove build</strong>
+                  <div>
+                    {BUFF_ORDER.filter((kind) => buffRank(game, kind) > 0).map((kind) => {
+                      const rank = buffRank(game, kind);
+                      return (
+                        <span
+                          key={kind}
+                          style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
+                          title={BUFF_DATA[kind].description}
+                        >
+                          <b aria-hidden="true">{BUFF_DATA[kind].icon}</b>
+                          {BUFF_DATA[kind].name}
+                          {rank > 1 ? <em>×{rank}</em> : null}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </aside>
+              ) : null}
+
               {rushWindow > 0 && !waveAnnouncement ? (
                 <div
                   className="rush-chain-hud"
@@ -2087,7 +2358,7 @@ export default function NatureDefenseGame() {
                     {formatNumber(inspectedTower.kills)} cleared · {formatNumber(inspectedTower.damageDone)} cleansing
                   </span>
                   <span>
-                    {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).rate.toFixed(1)}/s · {towerStats(inspectedTower).range.toFixed(1)} range
+                    {Math.round(towerStats(inspectedTower, game).damage)} damage · {towerStats(inspectedTower, game).rate.toFixed(1)}/s · {towerStats(inspectedTower, game).range.toFixed(1)} range
                   </span>
                   <div className="tower-actions">
                     <button
@@ -2146,6 +2417,10 @@ export default function NatureDefenseGame() {
                         <strong>{formatNumber(game.towersBuilt)}</strong>
                       </div>
                       <div>
+                        <span>Boss blessings</span>
+                        <strong>{formatNumber(game.buffs.length)}</strong>
+                      </div>
+                      <div>
                         <span>Guardian upgrades</span>
                         <strong>{formatNumber(game.towerUpgrades)}</strong>
                       </div>
@@ -2197,7 +2472,7 @@ export default function NatureDefenseGame() {
                     key={kind}
                     className={selectedKind === kind ? "selected" : ""}
                     onClick={() => selectTower(kind)}
-                    disabled={game.phase === "gameover"}
+                    disabled={game.phase === "gameover" || Boolean(game.pendingBuffChoices)}
                     aria-describedby={`tower-tooltip-${kind}`}
                     style={{ "--tower-color": tower.color } as React.CSSProperties}
                   >
@@ -2239,7 +2514,7 @@ export default function NatureDefenseGame() {
                     key={kind}
                     className={`${selectedSpell === kind ? "selected" : ""} ${charges ? "charged" : ""}`}
                     onClick={() => selectSpell(kind)}
-                    disabled={game.phase === "gameover"}
+                    disabled={game.phase === "gameover" || Boolean(game.pendingBuffChoices)}
                     style={{ "--spell-color": spell.color } as React.CSSProperties}
                     aria-label={`${charges ? "Arm" : "Buy and arm"} ${spell.name}. ${spell.description}`}
                   >
@@ -2332,6 +2607,14 @@ export default function NatureDefenseGame() {
                   Chickadees fire quickly, foxes slow, boars cleanse groups,
                   and wolves chain spirit sparks. Levels increase damage and
                   attack speed while strengthening each guardian's specialty.
+                </p>
+              </div>
+              <div>
+                <h3>Claim boss blessings</h3>
+                <p>
+                  Every Grime King drops three permanent tower mutations. Pick
+                  one card to shape the run; your collected Grove build stays
+                  visible in the board's bottom-right corner.
                 </p>
               </div>
               <div>

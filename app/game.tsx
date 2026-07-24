@@ -1715,9 +1715,10 @@ export default function NatureDefenseGame() {
                       <img src={tower.image} alt="" />
                       <img src={tower.guardian} alt="" />
                     </span>
-                    <span>
-                      <strong>{tower.hotkey}</strong>
-                      <small>{tower.cost}</small>
+                    <span className="dock-copy">
+                      <strong>{tower.name}</strong>
+                      <em>{tower.description}</em>
+                      <small><kbd>{tower.hotkey}</kbd> · {tower.cost} gold</small>
                     </span>
                     <span
                       id={`tower-tooltip-${kind}`}

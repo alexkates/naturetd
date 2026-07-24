@@ -1387,9 +1387,10 @@ body {
   display: flex;
   align-items: center;
   gap: 2px;
-  min-width: 50px;
-  height: 44px;
-  padding: 3px 5px 3px 3px;
+  width: 132px;
+  min-width: 132px;
+  height: 58px;
+  padding: 4px 7px 4px 4px;
   border: 1px solid #d4c2df;
   border-radius: 9px;
   color: #5c456a;
@@ -1429,10 +1430,42 @@ body {
   height: 20px;
 }
 
-.guardian-dock button > span:nth-child(2) {
+.dock-copy {
   display: grid;
+  min-width: 0;
   gap: 1px;
-  justify-items: center;
+  text-align: left;
+}
+
+.dock-copy strong,
+.dock-copy em,
+.dock-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock-copy strong {
+  line-height: 1.05;
+}
+
+.dock-copy em {
+  display: -webkit-box;
+  color: #75677d;
+  font-size: 8px;
+  font-style: normal;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dock-copy small {
+  white-space: nowrap;
+}
+
+.dock-copy kbd {
+  width: 15px;
+  height: 15px;
+  font-size: 8px;
 }
 
 .guardian-dock strong {
@@ -2060,12 +2093,8 @@ body {
   }
 
   .guardian-dock button {
-    min-width: 41px;
-    padding-right: 3px;
-  }
-
-  .guardian-dock button > span:nth-child(2) small {
-    display: none;
+    width: 116px;
+    min-width: 116px;
   }
 
   .hotkey-strip {
@@ -2143,8 +2172,17 @@ body {
     text-overflow: ellipsis;
   }
 
+  .guardian-dock {
+    right: 8px;
+    max-width: calc(100% - 16px);
+  }
+
   .guardian-dock button {
-    min-width: 36px;
+    width: auto;
+    min-width: 0;
+    flex: 1 1 0;
+    gap: 3px;
+    padding-right: 3px;
   }
 
   .dock-art {
@@ -2157,8 +2195,16 @@ body {
     height: 28px;
   }
 
-  .guardian-dock button > span:nth-child(2) {
-    display: none;
+  .dock-copy strong {
+    font-size: 9px;
+  }
+
+  .dock-copy em {
+    font-size: 7px;
+  }
+
+  .dock-copy small {
+    font-size: 7px;
   }
 
   .help-grid,

@@ -1254,20 +1254,46 @@ export default function NatureDefenseGame() {
     };
   }, [drawGame, refresh, updateGame]);
 
+  const cancelSpell = useCallback(
+    (announce = true) => {
+      const kind = selectedSpellRef.current;
+      if (!kind) return false;
+      const game = gameRef.current;
+      if (game.spellCharges[kind] > 0) {
+        game.spellCharges[kind] -= 1;
+        game.gold += SPELL_DATA[kind].cost;
+        game.goldSpent = Math.max(0, game.goldSpent - SPELL_DATA[kind].cost);
+      }
+      selectedSpellRef.current = null;
+      setSelectedSpell(null);
+      if (announce) {
+        game.message = `${SPELL_DATA[kind].name} cancelled — ${formatNumber(SPELL_DATA[kind].cost)} gold refunded.`;
+        game.messageUntil = game.elapsed + 3.5;
+      }
+      refresh();
+      return true;
+    },
+    [refresh],
+  );
+
   const selectTower = useCallback((kind: TowerKind) => {
+    cancelSpell(false);
     movingCellRef.current = null;
-    selectedSpellRef.current = null;
     setMovingCell(null);
-    setSelectedSpell(null);
     setSelectedKind(kind);
     setSelectedCell(null);
-  }, []);
+  }, [cancelSpell]);
 
   const selectSpell = useCallback(
     (kind: SpellKind) => {
       const game = gameRef.current;
       if (game.phase === "gameover") return;
       const spell = SPELL_DATA[kind];
+      if (selectedSpellRef.current === kind) {
+        cancelSpell();
+        return;
+      }
+      if (selectedSpellRef.current) cancelSpell(false);
       if (game.spellCharges[kind] <= 0) {
         if (game.gold < spell.cost) {
           notify(`Need ${formatNumber(spell.cost - game.gold)} more gold for ${spell.name}.`);
@@ -1286,7 +1312,7 @@ export default function NatureDefenseGame() {
       game.messageUntil = game.elapsed + 4;
       refresh();
     },
-    [notify, refresh],
+    [cancelSpell, notify, refresh],
   );
 
   const castSpell = useCallback(
@@ -1745,17 +1771,14 @@ export default function NatureDefenseGame() {
         else openHelp();
       } else if (event.key === "Escape") {
         if (helpOpen) closeHelp();
-        else if (selectedSpellRef.current) {
-          selectedSpellRef.current = null;
-          setSelectedSpell(null);
-          notify("Spell cast cancelled. Your charge is saved.");
-        } else if (movingCellRef.current) cancelMove();
+        else if (selectedSpellRef.current) cancelSpell();
+        else if (movingCellRef.current) cancelMove();
         else setSelectedCell(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelMove, closeHelp, closeIntro, helpOpen, introOpen, moveSelected, notify, nextIntroStep, openHelp, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause]);
+  }, [cancelMove, cancelSpell, closeHelp, closeIntro, helpOpen, introOpen, moveSelected, nextIntroStep, openHelp, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell

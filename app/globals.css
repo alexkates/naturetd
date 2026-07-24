@@ -2748,3 +2748,34 @@ body {
     font-size: 8px;
   }
 }
+
+
+/* Keep both control rows inside the viewport-height board frame. */
+.canvas-stage {
+  width: min(
+    calc(100vw - 52px),
+    calc((100dvh - 398px) * 2 / 1)
+  );
+}
+
+@media (max-width: 1250px) {
+  .canvas-stage {
+    width: min(
+      calc(100vw - 26px),
+      calc((100dvh - 470px) * 2 / 1)
+    );
+  }
+}
+
+@media (max-width: 850px) {
+  .canvas-stage {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .canvas-stage {
+    width: min(calc(100% - 32px), 440px);
+    margin: 12px auto;
+  }
+}

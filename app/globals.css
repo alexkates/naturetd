@@ -1591,13 +1591,31 @@ body {
   position: fixed;
   z-index: 120;
   inset: 0;
+  overflow: hidden;
   padding: 22px;
-  background: rgba(34, 21, 42, 0.54);
-  backdrop-filter: blur(3px);
+  background: transparent;
+}
+
+.intro-spotlight {
+  position: fixed;
+  z-index: 0;
+  border: 2px solid rgba(235, 249, 150, 0.96);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 9999px rgba(34, 21, 42, 0.66),
+    0 0 14px 4px rgba(224, 244, 125, 0.75),
+    inset 0 0 12px rgba(255, 255, 255, 0.38);
+  pointer-events: none;
+  transition:
+    top 220ms ease,
+    left 220ms ease,
+    width 220ms ease,
+    height 220ms ease;
 }
 
 .intro-card {
   position: absolute;
+  z-index: 1;
   width: min(440px, calc(100% - 44px));
   padding: 24px;
   border: 2px solid #795293;
@@ -1617,24 +1635,24 @@ body {
 
 .intro-board .intro-card {
   top: 50%;
-  right: 24px;
+  left: max(24px, calc(var(--intro-target-right) - 464px));
   transform: translateY(-50%);
 }
 
 .intro-health .intro-card {
-  bottom: 24px;
-  left: 50%;
+  top: calc(var(--intro-target-bottom) + 16px);
+  left: var(--intro-target-center-x);
   transform: translateX(-50%);
 }
 
 .intro-guardians .intro-card {
-  top: 100px;
-  right: 24px;
+  bottom: calc(100dvh - var(--intro-target-top) + 16px);
+  left: max(22px, var(--intro-target-left));
 }
 
 .intro-actions .intro-card {
-  top: 100px;
-  left: 50%;
+  bottom: calc(100dvh - var(--intro-target-top) + 16px);
+  left: var(--intro-target-center-x);
   transform: translateX(-50%);
 }
 
@@ -1937,15 +1955,30 @@ body {
     grid-template-columns: 1fr 1fr;
   }
 
-  .intro-board .intro-card,
-  .intro-health .intro-card,
-  .intro-guardians .intro-card,
-  .intro-actions .intro-card {
+  .intro-board .intro-card {
     top: 50%;
     right: auto;
     bottom: auto;
     left: 50%;
     transform: translate(-50%, -50%);
+  }
+
+  .intro-health .intro-card {
+    top: calc(var(--intro-target-bottom) + 12px);
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .intro-guardians .intro-card,
+  .intro-actions .intro-card {
+    top: auto;
+    right: 14px;
+    bottom: calc(100dvh - var(--intro-target-top) + 12px);
+    left: 14px;
+    width: auto;
+    transform: none;
   }
 }
 

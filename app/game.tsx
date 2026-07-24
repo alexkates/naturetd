@@ -439,6 +439,10 @@ function invaderImagePath(invader: Invader) {
 
 export default function NatureDefenseGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const healthRef = useRef<HTMLDivElement>(null);
+  const guardianDockRef = useRef<HTMLDivElement>(null);
+  const hotkeyRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game>(createGame());
   const imagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const hoverRef = useRef<Point | null>(null);
@@ -456,6 +460,14 @@ export default function NatureDefenseGame() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [introStep, setIntroStep] = useState(0);
+  const [introHighlight, setIntroHighlight] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+    right: number;
+    bottom: number;
+  } | null>(null);
 
   const refresh = useCallback(() => setRevision((revision) => revision + 1), []);
 
@@ -1261,6 +1273,41 @@ export default function NatureDefenseGame() {
   }, [refresh]);
 
   useEffect(() => {
+    if (!introOpen) {
+      setIntroHighlight(null);
+      return;
+    }
+
+    const updateHighlight = () => {
+      const target = [
+        boardRef,
+        boardRef,
+        healthRef,
+        guardianDockRef,
+        hotkeyRef,
+      ][introStep].current;
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const padding = introStep <= 1 ? 3 : 8;
+      setIntroHighlight({
+        top: rect.top - padding,
+        left: rect.left - padding,
+        width: rect.width + padding * 2,
+        height: rect.height + padding * 2,
+        right: rect.right + padding,
+        bottom: rect.bottom + padding,
+      });
+    };
+
+    const frame = requestAnimationFrame(updateHighlight);
+    window.addEventListener("resize", updateHighlight);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updateHighlight);
+    };
+  }, [introOpen, introStep]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
       if (introOpen) {
@@ -1344,7 +1391,7 @@ export default function NatureDefenseGame() {
                 <span>Gold</span>
                 <strong className="gold-value">{formatNumber(game.gold)}</strong>
               </div>
-              <div className="resource">
+              <div className="resource" ref={healthRef}>
                 <span>Heartwood</span>
                 <strong className={game.health <= 5 ? "danger-value" : ""}>
                   {game.health}/20
@@ -1445,7 +1492,7 @@ export default function NatureDefenseGame() {
               </div>
             </div>
 
-            <div className="board-playfield">
+            <div className="board-playfield" ref={boardRef}>
               <canvas
                 ref={canvasRef}
                 width={WIDTH}
@@ -1576,7 +1623,11 @@ export default function NatureDefenseGame() {
               )}
             </div>
 
-            <div className="guardian-dock" aria-label="Guardian build shortcuts">
+            <div
+              ref={guardianDockRef}
+              className="guardian-dock"
+              aria-label="Guardian build shortcuts"
+            >
               <span className="dock-label">Guardians</span>
               {TOWER_ORDER.map((kind) => {
                 const tower = TOWER_DATA[kind];
@@ -1616,7 +1667,11 @@ export default function NatureDefenseGame() {
               })}
             </div>
 
-            <div className="hotkey-strip" aria-label="Keyboard shortcuts">
+            <div
+              ref={hotkeyRef}
+              className="hotkey-strip"
+              aria-label="Keyboard shortcuts"
+            >
               <span><kbd>1–4</kbd> Build</span>
               <span><kbd>S</kbd> Sell</span>
               <span><kbd>M</kbd> Move</span>
@@ -1703,7 +1758,32 @@ export default function NatureDefenseGame() {
       )}
 
       {introOpen ? (
-        <div className={`intro-backdrop intro-${INTRO_STEPS[introStep].id}`}>
+        <div
+          className={`intro-backdrop intro-${INTRO_STEPS[introStep].id}`}
+          style={
+            introHighlight
+              ? ({
+                  "--intro-target-top": `${introHighlight.top}px`,
+                  "--intro-target-left": `${introHighlight.left}px`,
+                  "--intro-target-right": `${introHighlight.right}px`,
+                  "--intro-target-bottom": `${introHighlight.bottom}px`,
+                  "--intro-target-center-x": `${introHighlight.left + introHighlight.width / 2}px`,
+                } as React.CSSProperties)
+              : undefined
+          }
+        >
+          {introHighlight ? (
+            <div
+              className="intro-spotlight"
+              aria-hidden="true"
+              style={{
+                top: introHighlight.top,
+                left: introHighlight.left,
+                width: introHighlight.width,
+                height: introHighlight.height,
+              }}
+            />
+          ) : null}
           <section
             className="intro-card"
             role="dialog"

@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const origin = `${protocol}://${host}`;
   const title = "Nature's Last Stand";
   const description =
-    "Build a living maze and hold back an endless animal stampede in this browser tower-defense game.";
+    "Build a living maze of animal guardians and cleanse endless waves of whimsical Blightlings before they reach the Heartwood.";
 
   return {
     title: { absolute: title },
@@ -22,13 +22,13 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title,
       description,
-      images: [{ url: `${origin}/og.png`, width: 1731, height: 909 }],
+      images: [{ url: `${origin}/og-v2.png`, width: 1672, height: 941 }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [`${origin}/og.png`],
+      images: [`${origin}/og-v2.png`],
     },
   };
 }

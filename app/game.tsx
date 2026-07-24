@@ -31,7 +31,7 @@ type Tower = {
 
 type Enemy = {
   id: number;
-  animal: Animal;
+  invader: Invader;
   path: Point[];
   pathIndex: number;
   x: number;
@@ -56,7 +56,7 @@ type Projectile = {
   arc?: boolean;
 };
 
-type Animal = {
+type Invader = {
   name: string;
   file: string;
   hp: number;
@@ -74,7 +74,7 @@ type Game = {
   towers: Map<string, Tower>;
   enemies: Enemy[];
   projectiles: Projectile[];
-  waveQueue: Animal[];
+  waveQueue: Invader[];
   spawnClock: number;
   spawnInterval: number;
   seed: number;
@@ -88,32 +88,25 @@ type Game = {
   message: string;
   messageUntil: number;
   route: Point[];
+  nextWaveIn: number;
+  wavePeriod: number;
 };
 
-const ANIMALS: Animal[] = [
-  { name: "Tiny Chick", file: "TinyChick.gif", hp: 0.62, speed: 1.45, bounty: 7, unlock: 1 },
-  { name: "Croaking Toad", file: "CroakingToad.gif", hp: 0.9, speed: 1, bounty: 9, unlock: 1 },
-  { name: "Dainty Pig", file: "DaintyPig.gif", hp: 1.35, speed: 0.88, bounty: 12, unlock: 2 },
-  { name: "Clucking Chicken", file: "CluckingChicken.gif", hp: 0.85, speed: 1.25, bounty: 10, unlock: 3 },
-  { name: "Honking Goose", file: "HonkingGoose.gif", hp: 1.05, speed: 1.18, bounty: 11, unlock: 4 },
-  { name: "Leaping Frog", file: "LeapingFrog.gif", hp: 0.82, speed: 1.5, bounty: 12, unlock: 5 },
-  { name: "Meowing Cat", file: "MeowingCat.gif", hp: 1.1, speed: 1.38, bounty: 13, unlock: 6 },
-  { name: "Pasturing Sheep", file: "PasturingSheep.gif", hp: 1.7, speed: 0.82, bounty: 15, unlock: 7 },
-  { name: "Snow Fox", file: "SnowFox.gif", hp: 1.2, speed: 1.62, bounty: 16, unlock: 8 },
-  { name: "Slow Turtle", file: "SlowTurtle.gif", hp: 3.2, speed: 0.58, bounty: 18, unlock: 9 },
-  { name: "Coral Crab", file: "CoralCrab.gif", hp: 2.35, speed: 0.75, bounty: 18, unlock: 11 },
-  { name: "Stinky Skunk", file: "StinkySkunk.gif", hp: 1.8, speed: 1.05, bounty: 19, unlock: 13 },
-  { name: "Spikey Porcupine", file: "SpikeyPorcupine.gif", hp: 2.65, speed: 0.92, bounty: 22, unlock: 15, cityDamage: 2 },
-  { name: "Timber Wolf", file: "TimberWolf.gif", hp: 2.1, speed: 1.48, bounty: 24, unlock: 17, cityDamage: 2 },
+const BLIGHTLINGS: Invader[] = [
+  { name: "Muckling", file: "muckling.png", hp: 1, speed: 1, bounty: 4, unlock: 1 },
+  { name: "Cinderling", file: "cinderling.png", hp: 0.72, speed: 1.48, bounty: 5, unlock: 1 },
+  { name: "Scrapbug", file: "scrapbug.png", hp: 2.25, speed: 0.7, bounty: 8, unlock: 1 },
+  { name: "Sporefiend", file: "sporefiend.png", hp: 1.45, speed: 0.92, bounty: 7, unlock: 2 },
+  { name: "Smogbat", file: "smogbat.png", hp: 0.9, speed: 1.75, bounty: 7, unlock: 3, cityDamage: 2 },
 ];
 
-const BOSS: Animal = {
-  name: "Mad Boar",
-  file: "MadBoar.gif",
-  hp: 12,
-  speed: 0.72,
-  bounty: 120,
-  unlock: 10,
+const BOSS: Invader = {
+  name: "The Grime King",
+  file: "grime-king.png",
+  hp: 15,
+  speed: 0.62,
+  bounty: 90,
+  unlock: 5,
   cityDamage: 5,
 };
 
@@ -129,60 +122,61 @@ const TOWER_DATA: Record<
     rate: number;
     range: number;
     hotkey: string;
+    guardian: string;
   }
 > = {
   thorn: {
-    name: "Thorn Nest",
-    cost: 75,
+    name: "Chickadee Bramble",
+    cost: 35,
     image: "/assets/towers/thorn.png",
     color: "#d9ef71",
-    description: "Fast single-target seeds",
-    damage: 14,
-    rate: 4,
-    range: 2.55,
+    description: "Chicks fling cleansing seeds",
+    damage: 7,
+    rate: 3.1,
+    range: 2.35,
     hotkey: "1",
+    guardian: "/assets/animals/TinyChick.gif",
   },
   frost: {
-    name: "Frost Bloom",
-    cost: 125,
+    name: "Foxglove Den",
+    cost: 55,
     image: "/assets/towers/frost.png",
     color: "#8ee8ff",
-    description: "Slows the stampede",
-    damage: 8,
-    rate: 1.45,
-    range: 3,
+    description: "Snow foxes calm and slow",
+    damage: 4,
+    rate: 1.25,
+    range: 2.8,
     hotkey: "2",
+    guardian: "/assets/animals/SnowFox.gif",
   },
   boulder: {
-    name: "Boulder Sling",
-    cost: 150,
+    name: "Boarstone Burrow",
+    cost: 65,
     image: "/assets/towers/boulder.png",
     color: "#f4b26b",
-    description: "Heavy splash damage",
-    damage: 34,
-    rate: 0.78,
-    range: 3.25,
+    description: "Boars scatter cleansing pollen",
+    damage: 15,
+    rate: 0.68,
+    range: 3,
     hotkey: "3",
+    guardian: "/assets/animals/MadBoar.gif",
   },
   lightning: {
-    name: "Storm Tree",
-    cost: 200,
+    name: "Wolfwood Roost",
+    cost: 85,
     image: "/assets/towers/lightning.png",
     color: "#ffe66a",
-    description: "Chains through groups",
-    damage: 19,
-    rate: 1.08,
-    range: 3.05,
+    description: "Wolves chain bright spirit sparks",
+    damage: 8,
+    rate: 0.92,
+    range: 2.85,
     hotkey: "4",
+    guardian: "/assets/animals/TimberWolf.gif",
   },
 };
 
 const TOWER_ORDER = Object.keys(TOWER_DATA) as TowerKind[];
 const keyOf = (x: number, y: number) => `${x},${y}`;
-const centerOf = (point: Point) => ({
-  x: (point.x + 0.5) * CELL,
-  y: (point.y + 0.5) * CELL,
-});
 
 function mulberry32(seed: number) {
   return function random() {
@@ -233,11 +227,12 @@ function createPath(
   towers: Map<string, Tower>,
   random: () => number,
   randomize = true,
+  origin = START,
 ) {
   const distances = calculateDistances(towers);
-  if (!Number.isFinite(distances[START.y][START.x])) return null;
-  const path = [START];
-  let current = START;
+  if (!Number.isFinite(distances[origin.y][origin.x])) return null;
+  const path = [origin];
+  let current = origin;
   while (current.x !== CITY.x || current.y !== CITY.y) {
     const targetDistance = distances[current.y][current.x] - 1;
     const choices = [
@@ -267,7 +262,7 @@ function createGame(seed = newSeed()): Game {
   const rng = mulberry32(seed);
   const towers = new Map<string, Tower>();
   return {
-    gold: 500,
+    gold: 260,
     health: 20,
     wave: 0,
     phase: "intermission",
@@ -276,7 +271,7 @@ function createGame(seed = newSeed()): Game {
     projectiles: [],
     waveQueue: [],
     spawnClock: 0,
-    spawnInterval: 0.68,
+    spawnInterval: 0.52,
     seed,
     rng,
     elapsed: 0,
@@ -285,26 +280,21 @@ function createGame(seed = newSeed()): Game {
     kills: 0,
     damage: 0,
     bestWave: 0,
-    message: "Shape a maze, then release the stampede.",
+    message: "Grow a guardian maze before the Blight arrives.",
     messageUntil: 5,
     route: createPath(towers, rng, false) ?? [],
+    nextWaveIn: 30,
+    wavePeriod: 30,
   };
 }
 
 function towerStats(tower: Tower) {
   const base = TOWER_DATA[tower.kind];
-  const damageMultiplier = [1, 1.72, 2.85][tower.level - 1];
   return {
-    damage: base.damage * damageMultiplier,
-    rate: base.rate * (1 + (tower.level - 1) * 0.14),
-    range: base.range + (tower.level - 1) * 0.32,
+    damage: base.damage,
+    rate: base.rate,
+    range: base.range,
   };
-}
-
-function upgradeCost(tower: Tower) {
-  if (tower.level === 1) return Math.round(TOWER_DATA[tower.kind].cost * 1.5 / 5) * 5;
-  if (tower.level === 2) return Math.round(TOWER_DATA[tower.kind].cost * 2.5 / 5) * 5;
-  return 0;
 }
 
 function distance(a: Point, b: Point) {
@@ -313,27 +303,58 @@ function distance(a: Point, b: Point) {
 
 function makeWave(game: Game) {
   const wave = game.wave;
-  const available = ANIMALS.filter((animal) => animal.unlock <= wave);
-  const count = 8 + wave * 2;
-  const queue: Animal[] = [];
+  const available = BLIGHTLINGS.filter((invader) => invader.unlock <= wave);
+  const count = 11 + wave * 3;
+  const queue: Invader[] = [];
+  const roster = [...available].sort(() => game.rng() - 0.5);
   for (let i = 0; i < count; i += 1) {
-    const weight = Math.pow(game.rng(), 0.65);
-    queue.push(available[Math.min(available.length - 1, Math.floor(weight * available.length))]);
+    const mixedIndex = (i + Math.floor(game.rng() * roster.length)) % roster.length;
+    queue.push(roster[mixedIndex]);
   }
-  if (wave % 10 === 0) queue.splice(Math.floor(queue.length * 0.72), 0, BOSS);
+  if (wave % 5 === 0) queue.splice(Math.floor(queue.length * 0.65), 0, BOSS);
   return queue;
 }
 
-function upcomingAnimals(wave: number) {
-  const next = wave + 1;
-  const unlocked = ANIMALS.filter((animal) => animal.unlock <= next);
-  const latest = unlocked.slice(-3);
-  if (next % 10 === 0) latest.push(BOSS);
-  return latest;
+function queueNextWave(game: Game, earlyBonus = 0) {
+  game.wave += 1;
+  const wave = makeWave(game);
+  game.waveQueue.push(...wave);
+  game.spawnInterval = Math.max(0.2, 0.5 - game.wave * 0.007);
+  game.spawnClock = Math.min(game.spawnClock, 0);
+  game.nextWaveIn = game.wavePeriod;
+  game.phase = "wave";
+  game.paused = false;
+  game.gold += earlyBonus;
+  game.message = earlyBonus
+    ? `Wave ${game.wave} called early — +${earlyBonus} gold!`
+    : `Wave ${game.wave}: ${wave.length} Blightlings spilled from the rift.`;
+  game.messageUntil = game.elapsed + 4;
 }
 
-function animalImagePath(animal: Animal) {
-  return `/assets/animals/${animal.file}`;
+function rerouteEnemies(game: Game) {
+  for (const enemy of game.enemies) {
+    const origin = {
+      x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x))),
+      y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y))),
+    };
+    const path = createPath(game.towers, game.rng, true, origin);
+    if (path) {
+      enemy.path = path;
+      enemy.pathIndex = 0;
+    }
+  }
+}
+
+function upcomingInvaders(wave: number) {
+  const next = wave + 1;
+  const unlocked = BLIGHTLINGS.filter((invader) => invader.unlock <= next);
+  const preview = unlocked.slice(0, 5);
+  if (next % 5 === 0) preview.push(BOSS);
+  return preview;
+}
+
+function invaderImagePath(invader: Invader) {
+  return `/assets/blight/${invader.file}`;
 }
 
 export default function NatureDefenseGame() {
@@ -368,9 +389,12 @@ export default function NatureDefenseGame() {
 
   useEffect(() => {
     const allImages = [
-      ...ANIMALS.map(animalImagePath),
-      animalImagePath(BOSS),
-      ...TOWER_ORDER.map((kind) => TOWER_DATA[kind].image),
+      ...BLIGHTLINGS.map(invaderImagePath),
+      invaderImagePath(BOSS),
+      ...TOWER_ORDER.flatMap((kind) => [
+        TOWER_DATA[kind].image,
+        TOWER_DATA[kind].guardian,
+      ]),
     ];
     for (const source of allImages) {
       const image = new Image();
@@ -517,54 +541,45 @@ export default function NatureDefenseGame() {
     [damageEnemy],
   );
 
-  const spawnEnemy = useCallback((game: Game, animal: Animal) => {
+  const spawnEnemy = useCallback((game: Game, invader: Invader) => {
     const path = createPath(game.towers, game.rng, true);
     if (!path) return;
-    const waveScale = Math.pow(1.16, game.wave - 1);
-    const maxHp = 48 * waveScale * animal.hp;
+    const waveScale = Math.pow(1.2, game.wave - 1);
+    const maxHp = 86 * waveScale * invader.hp;
     game.enemies.push({
       id: Math.floor(game.rng() * 0x7fffffff),
-      animal,
+      invader,
       path,
       pathIndex: 0,
       x: path[0].x + 0.5,
       y: path[0].y + 0.5,
       hp: maxHp,
       maxHp,
-      speed: (1.72 + Math.min(game.wave, 40) * 0.012) * animal.speed,
-      bounty: Math.max(1, Math.round(animal.bounty * (1 + game.wave * 0.025))),
-      cityDamage: animal.cityDamage ?? 1,
+      speed: (1.82 + Math.min(game.wave, 40) * 0.018) * invader.speed,
+      bounty: Math.max(1, Math.round(invader.bounty * (1 + game.wave * 0.018))),
+      cityDamage: invader.cityDamage ?? 1,
       slowUntil: 0,
       slowFactor: 1,
       dead: false,
     });
   }, []);
 
-  const completeWave = useCallback(
-    (game: Game) => {
-      const bonus = 65 + game.wave * 10;
-      game.gold += bonus;
-      game.phase = "intermission";
-      game.paused = false;
-      game.message = `Wave ${game.wave} cleared — +${bonus} gold. Rebuild freely.`;
-      game.messageUntil = game.elapsed + 6;
-      syncBest(game.wave);
-      refresh();
-    },
-    [refresh, syncBest],
-  );
-
   const updateGame = useCallback(
     (rawDelta: number) => {
       const game = gameRef.current;
-      if (game.paused || game.phase !== "wave") return;
+      if (game.paused || game.phase === "gameover") return;
       const delta = Math.min(rawDelta, 0.05) * game.speed;
       game.elapsed += delta;
+      game.nextWaveIn -= delta;
+      if (game.nextWaveIn <= 0) {
+        queueNextWave(game);
+        syncBest(game.wave);
+      }
 
       game.spawnClock -= delta;
       if (game.waveQueue.length && game.spawnClock <= 0) {
-        const animal = game.waveQueue.shift();
-        if (animal) spawnEnemy(game, animal);
+        const invader = game.waveQueue.shift();
+        if (invader) spawnEnemy(game, invader);
         game.spawnClock = game.spawnInterval;
       }
 
@@ -574,13 +589,13 @@ export default function NatureDefenseGame() {
         if (!next) {
           enemy.dead = true;
           game.health -= enemy.cityDamage;
-          game.message = `${enemy.animal.name} reached the city!`;
+          game.message = `${enemy.invader.name} drained the Heartwood!`;
           game.messageUntil = game.elapsed + 2;
           if (game.health <= 0) {
             game.health = 0;
             game.phase = "gameover";
             game.paused = false;
-            syncBest(Math.max(0, game.wave - 1));
+            syncBest(game.wave);
             refresh();
             break;
           }
@@ -621,15 +636,8 @@ export default function NatureDefenseGame() {
         (projectile) => projectile.age < projectile.duration,
       );
 
-      if (
-        game.phase === "wave" &&
-        game.waveQueue.length === 0 &&
-        game.enemies.length === 0
-      ) {
-        completeWave(game);
-      }
     },
-    [completeWave, fireTower, refresh, spawnEnemy, syncBest],
+    [fireTower, refresh, spawnEnemy, syncBest],
   );
 
   const drawGame = useCallback(() => {
@@ -670,35 +678,30 @@ export default function NatureDefenseGame() {
       context.stroke();
     }
 
-    if (game.phase === "intermission") {
-      context.fillStyle = "rgba(231, 239, 160, .13)";
-      for (const point of game.route) {
-        context.fillRect(point.x * CELL + 7, point.y * CELL + 7, CELL - 14, CELL - 14);
-      }
-    }
-
     const entryY = START.y * CELL;
-    context.fillStyle = "#203a27";
+    context.fillStyle = "#593b75";
     context.fillRect(0, entryY + 5, 24, 30);
-    context.fillStyle = "#91bc63";
+    context.fillStyle = "#9c68c6";
     context.fillRect(6, entryY + 12, 18, 16);
-    context.fillStyle = "#d9ef71";
+    context.fillStyle = "#f8cd62";
     context.fillRect(17, entryY + 17, 7, 6);
 
     const cityX = CITY.x * CELL;
     const cityY = CITY.y * CELL;
-    context.fillStyle = "#304832";
-    context.fillRect(cityX + 2, cityY + 8, 38, 32);
-    context.fillStyle = "#d8d4b5";
-    context.fillRect(cityX + 6, cityY + 12, 29, 28);
-    context.fillStyle = "#eef0d6";
-    context.fillRect(cityX + 8, cityY + 7, 8, 8);
-    context.fillRect(cityX + 26, cityY + 7, 8, 8);
-    context.fillStyle = "#6b5040";
-    context.fillRect(cityX + 17, cityY + 25, 8, 15);
-    context.fillStyle = "#f4b84d";
-    context.fillRect(cityX + 11, cityY + 17, 5, 6);
-    context.fillRect(cityX + 27, cityY + 17, 5, 6);
+    context.fillStyle = "#715032";
+    context.fillRect(cityX + 16, cityY + 18, 12, 22);
+    context.fillStyle = "#b6e66a";
+    for (const [dx, dy, radius] of [
+      [9, 17, 11],
+      [21, 10, 14],
+      [33, 17, 11],
+    ] as const) {
+      context.beginPath();
+      context.arc(cityX + dx, cityY + dy, radius, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.fillStyle = "#fff29a";
+    context.fillRect(cityX + 19, cityY + 16, 6, 6);
 
     for (const [key, tower] of game.towers) {
       const [x, y] = key.split(",").map(Number);
@@ -706,17 +709,14 @@ export default function NatureDefenseGame() {
       if (image?.complete) {
         context.drawImage(image, x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
       }
-      if (tower.level > 1) {
-        context.fillStyle = "#18291d";
-        context.fillRect(x * CELL + 3, y * CELL + 3, 15 + tower.level * 4, 11);
-        context.fillStyle = TOWER_DATA[tower.kind].color;
-        context.font = "bold 9px monospace";
-        context.fillText(`T${tower.level}`, x * CELL + 5, y * CELL + 12);
+      const guardian = imagesRef.current.get(TOWER_DATA[tower.kind].guardian);
+      if (guardian?.complete) {
+        context.drawImage(guardian, x * CELL + 17, y * CELL + 13, 22, 22);
       }
     }
 
     const hover = hoverRef.current;
-    if (hover && game.phase === "intermission") {
+    if (hover && game.phase !== "gameover") {
       const occupied = game.towers.has(keyOf(hover.x, hover.y));
       const forbidden =
         (hover.x === START.x && hover.y === START.y) ||
@@ -727,6 +727,34 @@ export default function NatureDefenseGame() {
           ? "rgba(244, 87, 80, .35)"
           : "rgba(226, 245, 132, .27)";
       context.fillRect(hover.x * CELL + 1, hover.y * CELL + 1, CELL - 2, CELL - 2);
+      if (!occupied) {
+        const selectedTower = TOWER_DATA[selectedKindRef.current];
+        context.strokeStyle = selectedTower.color;
+        context.setLineDash([7, 5]);
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(
+          (hover.x + 0.5) * CELL,
+          (hover.y + 0.5) * CELL,
+          selectedTower.range * CELL,
+          0,
+          Math.PI * 2,
+        );
+        context.stroke();
+        context.setLineDash([]);
+        const ghost = imagesRef.current.get(selectedTower.image);
+        context.globalAlpha = 0.72;
+        if (ghost?.complete) {
+          context.drawImage(
+            ghost,
+            hover.x * CELL + 1,
+            hover.y * CELL + 1,
+            CELL - 2,
+            CELL - 2,
+          );
+        }
+        context.globalAlpha = 1;
+      }
     }
 
     const selected = selectedCellRef.current;
@@ -758,7 +786,7 @@ export default function NatureDefenseGame() {
 
     const sortedEnemies = [...game.enemies].sort((a, b) => a.y - b.y);
     for (const enemy of sortedEnemies) {
-      const image = imagesRef.current.get(animalImagePath(enemy.animal));
+      const image = imagesRef.current.get(invaderImagePath(enemy.invader));
       const drawX = enemy.x * CELL - 14;
       const bob = Math.sin(game.elapsed * 8 + enemy.id) * 1.2;
       const drawY = enemy.y * CELL - 14 + bob;
@@ -842,15 +870,23 @@ export default function NatureDefenseGame() {
         setSelectedCell(point);
         return;
       }
-      if (game.phase !== "intermission") {
-        notify("Construction is locked during a stampede.");
+      if (game.phase === "gameover") {
         return;
       }
       if (
         (point.x === START.x && point.y === START.y) ||
         (point.x === CITY.x && point.y === CITY.y)
       ) {
-        notify("The entrance and city must stay clear.");
+        notify("The Blight rift and Heartwood must stay clear.");
+        return;
+      }
+      if (
+        game.enemies.some(
+          (enemy) =>
+            Math.floor(enemy.x) === point.x && Math.floor(enemy.y) === point.y,
+        )
+      ) {
+        notify("A Blightling is already skittering through that patch.");
         return;
       }
       const data = TOWER_DATA[selectedKind];
@@ -870,10 +906,11 @@ export default function NatureDefenseGame() {
       const route = createPath(game.towers, game.rng, false);
       if (!route) {
         game.towers.delete(key);
-        notify("That closes the last path to the city.");
+        notify("That blocks the last route to the Heartwood.");
         return;
       }
       game.route = route;
+      rerouteEnemies(game);
       game.gold -= data.cost;
       game.message = `${data.name} planted.`;
       game.messageUntil = game.elapsed + 1.7;
@@ -909,47 +946,25 @@ export default function NatureDefenseGame() {
 
   const startWave = useCallback(() => {
     const game = gameRef.current;
-    if (game.phase !== "intermission") return;
-    game.wave += 1;
-    game.waveQueue = makeWave(game);
-    game.spawnInterval = Math.max(0.28, 0.68 - game.wave * 0.008);
-    game.spawnClock = 0;
-    game.phase = "wave";
-    game.paused = false;
-    game.message = `Wave ${game.wave}: ${game.waveQueue.length} animals incoming.`;
-    game.messageUntil = game.elapsed + 4;
+    if (game.phase === "gameover") return;
+    const bonus = Math.max(1, Math.ceil(game.nextWaveIn));
+    queueNextWave(game, bonus);
+    syncBest(game.wave);
     setSelectedCell(null);
     refresh();
-  }, [refresh]);
-
-  const upgradeSelected = useCallback(() => {
-    const game = gameRef.current;
-    const cell = selectedCellRef.current;
-    if (!cell) return;
-    const tower = game.towers.get(keyOf(cell.x, cell.y));
-    if (!tower || game.phase !== "intermission" || tower.level >= 3) return;
-    const cost = upgradeCost(tower);
-    if (game.gold < cost) {
-      notify(`Need ${cost - game.gold} more gold to upgrade.`);
-      return;
-    }
-    game.gold -= cost;
-    tower.spent += cost;
-    tower.level += 1;
-    notify(`${TOWER_DATA[tower.kind].name} reached tier ${tower.level}.`);
-    refresh();
-  }, [notify, refresh]);
+  }, [refresh, syncBest]);
 
   const sellSelected = useCallback(() => {
     const game = gameRef.current;
     const cell = selectedCellRef.current;
-    if (!cell || game.phase !== "intermission") return;
+    if (!cell || game.phase === "gameover") return;
     const key = keyOf(cell.x, cell.y);
     const tower = game.towers.get(key);
     if (!tower) return;
     game.gold += tower.spent;
     game.towers.delete(key);
     game.route = createPath(game.towers, game.rng, false) ?? [];
+    rerouteEnemies(game);
     setSelectedCell(null);
     notify(`Refunded ${tower.spent} gold.`);
     refresh();
@@ -957,7 +972,7 @@ export default function NatureDefenseGame() {
 
   const togglePause = useCallback(() => {
     const game = gameRef.current;
-    if (game.phase !== "wave") return;
+    if (game.phase === "gameover") return;
     game.paused = !game.paused;
     refresh();
   }, [refresh]);
@@ -991,19 +1006,26 @@ export default function NatureDefenseGame() {
         startWave();
       } else if (event.key.toLowerCase() === "p") {
         togglePause();
+      } else if (event.key.toLowerCase() === "s") {
+        sellSelected();
+      } else if (event.key.toLowerCase() === "f") {
+        setSpeed(gameRef.current.speed === 1 ? 2 : 1);
+      } else if (event.key.toLowerCase() === "n") {
+        restart();
       } else if (event.key === "Escape") {
         setSelectedCell(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectTower, startWave, togglePause]);
+  }, [restart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
     ? game.towers.get(keyOf(selectedCell.x, selectedCell.y))
     : undefined;
-  const nextAnimals = useMemo(() => upcomingAnimals(game.wave), [game.wave]);
+  const nextInvaders = useMemo(() => upcomingInvaders(game.wave), [game.wave]);
+  const rushBonus = Math.max(1, Math.ceil(game.nextWaveIn));
 
   return (
     <main className="game-shell">
@@ -1011,7 +1033,7 @@ export default function NatureDefenseGame() {
         <div className="brand-lockup">
           <div className="brand-mark">ND</div>
           <div>
-            <p className="eyebrow">Endless maze defense</p>
+            <p className="eyebrow">Whimsical endless maze defense</p>
             <h1>Nature&apos;s Last Stand</h1>
           </div>
         </div>
@@ -1021,7 +1043,7 @@ export default function NatureDefenseGame() {
             <strong className="gold-value">{Math.floor(game.gold)}</strong>
           </div>
           <div className="resource">
-            <span>City</span>
+            <span>Heartwood</span>
             <strong className={game.health <= 5 ? "danger-value" : ""}>
               {game.health}/20
             </strong>
@@ -1042,13 +1064,11 @@ export default function NatureDefenseGame() {
           <div className="board-frame">
             <div className="board-topline">
               <span className={`phase-pill ${game.phase}`}>
-                {game.phase === "intermission"
-                  ? "Build phase"
-                  : game.phase === "wave"
-                    ? game.paused
-                      ? "Paused"
-                      : "Stampede"
-                    : "City fallen"}
+                {game.phase === "gameover"
+                  ? "Heartwood wilted"
+                  : game.paused
+                    ? "Paused"
+                    : `Next Blight · ${Math.ceil(game.nextWaveIn)}s`}
               </span>
               <span className="seed">Run #{game.seed.toString(16).toUpperCase()}</span>
             </div>
@@ -1065,10 +1085,10 @@ export default function NatureDefenseGame() {
             />
             {game.phase === "gameover" && (
               <div className="game-over">
-                <p className="eyebrow">The city has fallen</p>
+                <p className="eyebrow">The Heartwood has wilted</p>
                 <h2>Wave {game.wave}</h2>
                 <p>
-                  {game.kills} animals stopped · {Math.round(game.damage)} damage
+                  {game.kills} Blightlings cleared · {Math.round(game.damage)} cleansing
                 </p>
                 <button className="primary-action" onClick={restart}>
                   Start a new run
@@ -1081,9 +1101,7 @@ export default function NatureDefenseGame() {
             <span>
               {game.messageUntil > game.elapsed
                 ? game.message
-                : game.phase === "intermission"
-                  ? "100% refunds are active. Experiment freely."
-                  : `${game.enemies.length + game.waveQueue.length} animals remain.`}
+                : `${game.enemies.length + game.waveQueue.length} Blightlings active · next wave in ${Math.ceil(game.nextWaveIn)}s`}
             </span>
             <div className="speed-controls">
               <button
@@ -1102,7 +1120,7 @@ export default function NatureDefenseGame() {
               </button>
               <button
                 onClick={togglePause}
-                disabled={game.phase !== "wave"}
+                disabled={game.phase === "gameover"}
                 aria-label={game.paused ? "Resume" : "Pause"}
               >
                 {game.paused ? "▶" : "Ⅱ"}
@@ -1116,10 +1134,10 @@ export default function NatureDefenseGame() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Grow defenses</p>
-                <h2>Wild arsenal</h2>
+                <h2>Wild guardians</h2>
               </div>
               <span className="phase-note">
-                {game.phase === "intermission" ? "Unlocked" : "Wave locked"}
+                Live building
               </span>
             </div>
             <div className="tower-list">
@@ -1131,10 +1149,13 @@ export default function NatureDefenseGame() {
                     key={kind}
                     className={`tower-card ${active ? "selected" : ""}`}
                     onClick={() => selectTower(kind)}
-                    disabled={game.phase !== "intermission"}
+                    disabled={game.phase === "gameover"}
                     style={{ "--tower-color": tower.color } as React.CSSProperties}
                   >
-                    <img src={tower.image} alt="" />
+                    <span className="tower-art">
+                      <img src={tower.image} alt="" />
+                      <img src={tower.guardian} alt="" />
+                    </span>
                     <span className="tower-copy">
                       <strong>{tower.name}</strong>
                       <small>{tower.description}</small>
@@ -1156,10 +1177,13 @@ export default function NatureDefenseGame() {
                   <p className="eyebrow">Selected defense</p>
                   <h2>{TOWER_DATA[inspectedTower.kind].name}</h2>
                 </div>
-                <span className="tier">Tier {inspectedTower.level}/3</span>
+                <span className="tier">Guardian</span>
               </div>
               <div className="inspector-body">
-                <img src={TOWER_DATA[inspectedTower.kind].image} alt="" />
+                <span className="inspector-art">
+                  <img src={TOWER_DATA[inspectedTower.kind].image} alt="" />
+                  <img src={TOWER_DATA[inspectedTower.kind].guardian} alt="" />
+                </span>
                 <dl>
                   <div>
                     <dt>Damage</dt>
@@ -1181,22 +1205,11 @@ export default function NatureDefenseGame() {
               </div>
               <div className="inspector-actions">
                 <button
-                  className="upgrade-button"
-                  onClick={upgradeSelected}
-                  disabled={
-                    game.phase !== "intermission" || inspectedTower.level >= 3
-                  }
-                >
-                  {inspectedTower.level >= 3
-                    ? "Fully grown"
-                    : `Upgrade · ${upgradeCost(inspectedTower)}`}
-                </button>
-                <button
                   className="sell-button"
                   onClick={sellSelected}
-                  disabled={game.phase !== "intermission"}
+                  disabled={game.phase === "gameover"}
                 >
-                  Uproot · +{inspectedTower.spent}
+                  Uproot · +{inspectedTower.spent} <kbd>S</kbd>
                 </button>
               </div>
             </section>
@@ -1204,22 +1217,22 @@ export default function NatureDefenseGame() {
             <section className="panel-section wave-preview">
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">Next stampede</p>
+                  <p className="eyebrow">Next mixed wave</p>
                   <h2>Wave {game.wave + 1}</h2>
                 </div>
-                <span>{8 + (game.wave + 1) * 2} total</span>
+                <span>{11 + (game.wave + 1) * 3} total</span>
               </div>
               <div className="animal-preview">
-                {nextAnimals.map((animal) => (
-                  <div key={animal.name} title={animal.name}>
-                    <img src={animalImagePath(animal)} alt={animal.name} />
+                {nextInvaders.map((invader) => (
+                  <div key={invader.name} title={invader.name}>
+                    <img src={invaderImagePath(invader)} alt={invader.name} />
                   </div>
                 ))}
               </div>
               <p>
                 {game.wave + 1 > 1
-                  ? "Health and speed rise every wave. New species join over time."
-                  : "Small scouts test the shortest path to your city."}
+                  ? "Every wave mixes unlocked Blightlings. Tougher breeds join quickly."
+                  : "Mucklings, Cinderlings, and Scrapbugs all arrive together."}
               </p>
             </section>
           )}
@@ -1227,29 +1240,26 @@ export default function NatureDefenseGame() {
           <button
             className="primary-action start-wave"
             onClick={startWave}
-            disabled={game.phase !== "intermission"}
+            disabled={game.phase === "gameover"}
           >
-            {game.phase === "intermission"
-              ? `Release wave ${game.wave + 1}`
-              : game.phase === "wave"
-                ? "Stampede in progress"
-                : "Run ended"}
+            {game.phase === "gameover"
+              ? "Run ended"
+              : `Call wave ${game.wave + 1} early · +${rushBonus}`}
             <span>Space</span>
           </button>
           <div className="run-metrics">
-            <span>{game.kills} stopped</span>
-            <span>{Math.round(game.damage)} damage</span>
-            <button onClick={restart}>New run</button>
+            <span>{game.kills} cleared</span>
+            <span>{Math.round(game.damage)} cleansing</span>
+            <button onClick={restart}>New run · N</button>
           </div>
         </aside>
       </section>
 
       <footer className="game-footer">
         <p>
-          Click open grass to build. Click a tower to upgrade or uproot it.
-          Construction locks when the wave starts.
+          1–4 select guardians · click to build · S uproots with a 100% refund.
         </p>
-        <p>Every build must leave a four-directional path to the city.</p>
+        <p>Space rushes a wave · F changes speed · P pauses · routes stay hidden.</p>
       </footer>
     </main>
   );

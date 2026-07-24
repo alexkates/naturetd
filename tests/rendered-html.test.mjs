@@ -33,5 +33,8 @@ test("renders the playable Nature's Last Stand shell", async () => {
   assert.match(html, /Guardian build shortcuts/);
   assert.match(html, /Wave 1/);
   assert.match(html, /Cleansing/);
+  assert.match(html, /Restart/);
+  assert.match(html, /Chickadee Bramble/);
+  assert.match(html, /press 1/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });

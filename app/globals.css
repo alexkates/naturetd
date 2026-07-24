@@ -1030,7 +1030,7 @@ body {
   height: 20px;
 }
 
-.guardian-dock button > span:last-child {
+.guardian-dock button > span:nth-child(2) {
   display: grid;
   gap: 1px;
   justify-items: center;
@@ -1044,6 +1044,61 @@ body {
 .guardian-dock small {
   color: var(--gold);
   font-size: 8px;
+}
+
+.guardian-tooltip {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  display: none;
+  width: 210px;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(104, 74, 130, 0.45);
+  border-radius: 10px;
+  color: #493653;
+  background: rgba(255, 250, 240, 0.98);
+  box-shadow: 0 10px 30px rgba(45, 27, 55, 0.24);
+  transform: translateX(-50%);
+  text-align: left;
+  pointer-events: none;
+}
+
+.guardian-dock button:first-of-type .guardian-tooltip {
+  left: 0;
+  transform: none;
+}
+
+.guardian-dock button:hover .guardian-tooltip,
+.guardian-dock button:focus-visible .guardian-tooltip {
+  display: grid;
+}
+
+.guardian-tooltip > strong {
+  color: #4f375d;
+  font-size: 11px;
+}
+
+.guardian-tooltip > span {
+  color: #776681;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.guardian-tooltip .tooltip-stats {
+  padding-top: 4px;
+  border-top: 1px solid #e3d7e9;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.guardian-tooltip .tooltip-cost {
+  color: #ad721e;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-weight: 700;
+}
+
+.restart-button {
+  padding: 0 10px;
 }
 
 .hotkey-strip {
@@ -1293,7 +1348,7 @@ body {
     padding-right: 3px;
   }
 
-  .guardian-dock button > span:last-child small {
+  .guardian-dock button > span:nth-child(2) small {
     display: none;
   }
 
@@ -1344,7 +1399,7 @@ body {
     height: 28px;
   }
 
-  .guardian-dock button > span:last-child {
+  .guardian-dock button > span:nth-child(2) {
     display: none;
   }
 

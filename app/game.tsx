@@ -719,7 +719,7 @@ export default function NatureDefenseGame() {
     }
 
     const hover = hoverRef.current;
-    if (hover && game.phase === "intermission") {
+    if (hover && game.phase !== "gameover") {
       const occupied = game.towers.has(keyOf(hover.x, hover.y));
       const forbidden =
         (hover.x === START.x && hover.y === START.y) ||
@@ -883,8 +883,7 @@ export default function NatureDefenseGame() {
         setSelectedCell(point);
         return;
       }
-      if (game.phase !== "intermission") {
-        notify("Guardians can only be planted between waves.");
+      if (game.phase === "gameover") {
         return;
       }
       if (
@@ -1010,6 +1009,12 @@ export default function NatureDefenseGame() {
     refresh();
   }, [refresh]);
 
+  const requestRestart = useCallback(() => {
+    if (window.confirm("Start a fresh run? Your current maze will be lost.")) {
+      restart();
+    }
+  }, [restart]);
+
   const openHelp = useCallback(() => {
     const game = gameRef.current;
     helpPausedRef.current = game.paused;
@@ -1051,7 +1056,7 @@ export default function NatureDefenseGame() {
       } else if (event.key.toLowerCase() === "f") {
         setSpeed(gameRef.current.speed === 1 ? 2 : 1);
       } else if (event.key.toLowerCase() === "n") {
-        restart();
+        requestRestart();
       } else if (
         event.key.toLowerCase() === "h" ||
         (event.key === "?" && event.shiftKey)
@@ -1065,7 +1070,7 @@ export default function NatureDefenseGame() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeHelp, helpOpen, openHelp, restart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
+  }, [closeHelp, helpOpen, openHelp, requestRestart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
@@ -1159,6 +1164,13 @@ export default function NatureDefenseGame() {
               >
                 ? <span>Help</span>
               </button>
+              <button
+                className="restart-button"
+                onClick={requestRestart}
+                aria-label="Restart the current run"
+              >
+                ↻ <span>Restart</span>
+              </button>
             </div>
           </header>
 
@@ -1167,7 +1179,7 @@ export default function NatureDefenseGame() {
               ref={canvasRef}
               width={WIDTH}
               height={HEIGHT}
-              className={game.phase === "intermission" ? "building" : ""}
+              className={game.phase !== "gameover" ? "building" : ""}
               onClick={handleCanvasClick}
               onMouseMove={handlePointerMove}
               onMouseLeave={() => {
@@ -1206,8 +1218,8 @@ export default function NatureDefenseGame() {
                     key={kind}
                     className={selectedKind === kind ? "selected" : ""}
                     onClick={() => selectTower(kind)}
-                    disabled={game.phase !== "intermission"}
-                    title={`${tower.name}: ${tower.description}`}
+                    disabled={game.phase === "gameover"}
+                    aria-describedby={`tower-tooltip-${kind}`}
                     style={{ "--tower-color": tower.color } as React.CSSProperties}
                   >
                     <span className="dock-art">
@@ -1217,6 +1229,20 @@ export default function NatureDefenseGame() {
                     <span>
                       <strong>{tower.hotkey}</strong>
                       <small>{tower.cost}</small>
+                    </span>
+                    <span
+                      id={`tower-tooltip-${kind}`}
+                      className="guardian-tooltip"
+                      role="tooltip"
+                    >
+                      <strong>{tower.name}</strong>
+                      <span>{tower.description}</span>
+                      <span className="tooltip-stats">
+                        {tower.damage} damage · {tower.rate.toFixed(1)}/s · {tower.range.toFixed(1)} range
+                      </span>
+                      <span className="tooltip-cost">
+                        {tower.cost} gold · press {tower.hotkey}
+                      </span>
                     </span>
                   </button>
                 );
@@ -1308,11 +1334,11 @@ export default function NatureDefenseGame() {
                 </p>
               </div>
               <div>
-                <h3>Rebuild freely</h3>
+                <h3>Build under pressure</h3>
                 <p>
-                  Between waves, select a planted guardian and press S to
-                  uproot it for a 100% refund. Building and uprooting lock while
-                  Blightlings are active.
+                  You can plant guardians during any wave. Between waves,
+                  select a planted guardian and press S to uproot it for a 100%
+                  refund.
                 </p>
               </div>
               <div>

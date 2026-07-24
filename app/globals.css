@@ -888,12 +888,33 @@ body {
 }
 
 .canvas-stage {
+  --board-top-gutter: 48px;
+  --board-bottom-gutter: 62px;
   position: relative;
-  width: min(calc(100vw - 26px), calc((100dvh - 96px) * 12 / 7));
+  box-sizing: content-box;
+  width: min(
+    calc(100vw - 26px),
+    calc((100dvh - 206px) * 12 / 7)
+  );
   max-width: 100%;
   aspect-ratio: 12 / 7;
+  padding-block:
+    var(--board-top-gutter)
+    var(--board-bottom-gutter);
   margin: auto;
   overflow: hidden;
+  background: linear-gradient(180deg, #f4e9f7, #eadcf0);
+}
+
+.board-playfield {
+  position: absolute;
+  z-index: 1;
+  top: var(--board-top-gutter);
+  right: 0;
+  bottom: var(--board-bottom-gutter);
+  left: 0;
+  overflow: hidden;
+  border-block: 2px solid rgba(104, 74, 130, 0.48);
   background: #4b7438;
 }
 
@@ -1070,12 +1091,12 @@ body {
 }
 
 .guardian-dock {
-  bottom: 12px;
-  left: 12px;
+  bottom: 6px;
+  left: 8px;
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 6px;
+  padding: 4px;
   border-radius: 14px;
 }
 
@@ -1095,7 +1116,7 @@ body {
   align-items: center;
   gap: 2px;
   min-width: 50px;
-  height: 47px;
+  height: 44px;
   padding: 3px 5px 3px 3px;
   border: 1px solid #d4c2df;
   border-radius: 9px;
@@ -1117,15 +1138,15 @@ body {
 .dock-art {
   position: relative;
   display: block;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
 }
 
 .dock-art img {
   position: absolute;
   inset: 0;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   image-rendering: pixelated;
 }
@@ -1208,7 +1229,7 @@ body {
 }
 
 .hotkey-strip {
-  bottom: 12px;
+  bottom: 8px;
   left: 50%;
   display: flex;
   align-items: center;
@@ -1402,7 +1423,10 @@ body {
   }
 
   .canvas-stage {
-    width: min(calc(100vw - 26px), calc((100dvh - 137px) * 12 / 7));
+    width: min(
+      calc(100vw - 26px),
+      calc((100dvh - 247px) * 12 / 7)
+    );
   }
 }
 
@@ -1439,6 +1463,8 @@ body {
   }
 
   .canvas-stage {
+    --board-top-gutter: 44px;
+    --board-bottom-gutter: 58px;
     width: 100%;
     aspect-ratio: 12 / 7;
   }

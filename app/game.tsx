@@ -1300,19 +1300,6 @@ export default function NatureDefenseGame() {
           </header>
 
           <div className="canvas-stage">
-            <canvas
-              ref={canvasRef}
-              width={WIDTH}
-              height={HEIGHT}
-              className={game.phase !== "gameover" ? "building" : ""}
-              onClick={handleCanvasClick}
-              onMouseMove={handlePointerMove}
-              onMouseLeave={() => {
-                hoverRef.current = null;
-              }}
-              aria-label="24 by 14 tower defense game board"
-            />
-
             <div className="game-message" aria-live="polite">
               <span>✦</span>
               {movingCell
@@ -1336,29 +1323,86 @@ export default function NatureDefenseGame() {
               </div>
             </div>
 
-            {waveAnnouncement ? (
-              <div
-                key={waveAnnouncement.wave}
-                className="wave-announcement"
-                role="status"
-                aria-live="assertive"
-              >
-                <p>The rift stirs</p>
-                <h2>Wave {waveAnnouncement.wave}</h2>
-                <strong>{waveAnnouncement.total} creatures incoming</strong>
-                <div className="wave-roster">
-                  {waveAnnouncement.roster.map(({ invader, count }) => (
-                    <span key={invader.name}>
-                      <img src={invaderImagePath(invader)} alt="" />
-                      <b>{count}×</b> {invader.name}
-                    </span>
-                  ))}
+            <div className="board-playfield">
+              <canvas
+                ref={canvasRef}
+                width={WIDTH}
+                height={HEIGHT}
+                className={game.phase !== "gameover" ? "building" : ""}
+                onClick={handleCanvasClick}
+                onMouseMove={handlePointerMove}
+                onMouseLeave={() => {
+                  hoverRef.current = null;
+                }}
+                aria-label="24 by 14 tower defense game board"
+              />
+
+              {waveAnnouncement ? (
+                <div
+                  key={waveAnnouncement.wave}
+                  className="wave-announcement"
+                  role="status"
+                  aria-live="assertive"
+                >
+                  <p>The rift stirs</p>
+                  <h2>Wave {waveAnnouncement.wave}</h2>
+                  <strong>{waveAnnouncement.total} creatures incoming</strong>
+                  <div className="wave-roster">
+                    {waveAnnouncement.roster.map(({ invader, count }) => (
+                      <span key={invader.name}>
+                        <img src={invaderImagePath(invader)} alt="" />
+                        <b>{count}×</b> {invader.name}
+                      </span>
+                    ))}
+                  </div>
+                  {waveAnnouncement.earlyBonus > 0 ? (
+                    <small>Early call bonus +{waveAnnouncement.earlyBonus} gold</small>
+                  ) : null}
                 </div>
-                {waveAnnouncement.earlyBonus > 0 ? (
-                  <small>Early call bonus +{waveAnnouncement.earlyBonus} gold</small>
-                ) : null}
-              </div>
-            ) : null}
+              ) : null}
+
+              {selectedCell && inspectedTower && (
+                <div
+                  className={`tower-popover ${selectedCell.y < 3 ? "below" : ""}`}
+                  style={{
+                    left: `${((selectedCell.x + 0.5) / COLS) * 100}%`,
+                    top: `${((selectedCell.y + 0.5) / ROWS) * 100}%`,
+                  }}
+                >
+                  <strong>{TOWER_DATA[inspectedTower.kind].name}</strong>
+                  <span>
+                    {inspectedTower.kills} cleared · {Math.round(inspectedTower.damageDone)} cleansing
+                  </span>
+                  <span>
+                    {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).range.toFixed(1)} range
+                  </span>
+                  <div className="tower-actions">
+                    <button onClick={moveSelected}>
+                      Move <kbd>M</kbd>
+                    </button>
+                    <button
+                      onClick={sellSelected}
+                      disabled={game.phase !== "intermission"}
+                    >
+                      Sell +{inspectedTower.spent} <kbd>S</kbd>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {game.phase === "gameover" && (
+                <div className="game-over">
+                  <p className="eyebrow">The Heartwood has wilted</p>
+                  <h2>Wave {game.wave}</h2>
+                  <p>
+                    {game.kills} Blightlings cleared · {Math.round(game.damage)} cleansing
+                  </p>
+                  <button className="primary-action" onClick={restart}>
+                    Start a new run
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="guardian-dock" aria-label="Guardian build shortcuts">
               <span className="dock-label">Guardians</span>
@@ -1409,48 +1453,6 @@ export default function NatureDefenseGame() {
               <span><kbd>P</kbd> Pause</span>
               <button onClick={openHelp}><kbd>H</kbd> All help</button>
             </div>
-
-            {selectedCell && inspectedTower && (
-              <div
-                className={`tower-popover ${selectedCell.y < 3 ? "below" : ""}`}
-                style={{
-                  left: `${((selectedCell.x + 0.5) / COLS) * 100}%`,
-                  top: `${((selectedCell.y + 0.5) / ROWS) * 100}%`,
-                }}
-              >
-                <strong>{TOWER_DATA[inspectedTower.kind].name}</strong>
-                <span>
-                  {inspectedTower.kills} cleared · {Math.round(inspectedTower.damageDone)} cleansing
-                </span>
-                <span>
-                  {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).range.toFixed(1)} range
-                </span>
-                <div className="tower-actions">
-                  <button onClick={moveSelected}>
-                    Move <kbd>M</kbd>
-                  </button>
-                  <button
-                    onClick={sellSelected}
-                    disabled={game.phase !== "intermission"}
-                  >
-                    Sell +{inspectedTower.spent} <kbd>S</kbd>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {game.phase === "gameover" && (
-              <div className="game-over">
-                <p className="eyebrow">The Heartwood has wilted</p>
-                <h2>Wave {game.wave}</h2>
-                <p>
-                  {game.kills} Blightlings cleared · {Math.round(game.damage)} cleansing
-                </p>
-                <button className="primary-action" onClick={restart}>
-                  Start a new run
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </section>

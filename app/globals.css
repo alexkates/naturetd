@@ -1176,6 +1176,17 @@ body {
   font-weight: 700;
 }
 
+.tower-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.tower-actions button {
+  margin-top: 0;
+}
+
 .tower-popover button:disabled {
   opacity: 0.46;
 }

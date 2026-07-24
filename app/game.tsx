@@ -364,12 +364,14 @@ export default function NatureDefenseGame() {
   const hoverRef = useRef<Point | null>(null);
   const selectedKindRef = useRef<TowerKind>("thorn");
   const selectedCellRef = useRef<Point | null>(null);
+  const movingCellRef = useRef<Point | null>(null);
   const helpPausedRef = useRef(false);
   const frameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const [, setRevision] = useState(0);
   const [selectedKind, setSelectedKind] = useState<TowerKind>("thorn");
   const [selectedCell, setSelectedCell] = useState<Point | null>(null);
+  const [movingCell, setMovingCell] = useState<Point | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const refresh = useCallback(() => setRevision((revision) => revision + 1), []);
@@ -388,6 +390,10 @@ export default function NatureDefenseGame() {
   useEffect(() => {
     selectedCellRef.current = selectedCell;
   }, [selectedCell]);
+
+  useEffect(() => {
+    movingCellRef.current = movingCell;
+  }, [movingCell]);
 
   useEffect(() => {
     const allImages = [
@@ -724,7 +730,9 @@ export default function NatureDefenseGame() {
       const forbidden =
         (hover.x === START.x && hover.y === START.y) ||
         (hover.x === CITY.x && hover.y === CITY.y);
-      const affordable = game.gold >= TOWER_DATA[selectedKindRef.current].cost;
+      const affordable =
+        movingCellRef.current !== null ||
+        game.gold >= TOWER_DATA[selectedKindRef.current].cost;
       context.fillStyle =
         occupied || forbidden || !affordable
           ? "rgba(244, 87, 80, .35)"
@@ -864,6 +872,8 @@ export default function NatureDefenseGame() {
   }, [drawGame, refresh, updateGame]);
 
   const selectTower = useCallback((kind: TowerKind) => {
+    movingCellRef.current = null;
+    setMovingCell(null);
     setSelectedKind(kind);
     setSelectedCell(null);
   }, []);
@@ -879,6 +889,62 @@ export default function NatureDefenseGame() {
       };
       const game = gameRef.current;
       const key = keyOf(point.x, point.y);
+      const movingFrom = movingCellRef.current;
+      if (movingFrom) {
+        const sourceKey = keyOf(movingFrom.x, movingFrom.y);
+        if (key === sourceKey) {
+          movingCellRef.current = null;
+          setMovingCell(null);
+          setSelectedCell(movingFrom);
+          notify("Move cancelled.");
+          return;
+        }
+        if (game.towers.has(key)) {
+          notify("That patch already has a guardian.");
+          return;
+        }
+        if (
+          (point.x === START.x && point.y === START.y) ||
+          (point.x === CITY.x && point.y === CITY.y)
+        ) {
+          notify("The Blight rift and Heartwood must stay clear.");
+          return;
+        }
+        if (
+          game.enemies.some(
+            (enemy) =>
+              Math.floor(enemy.x) === point.x &&
+              Math.floor(enemy.y) === point.y,
+          )
+        ) {
+          notify("A Blightling is already skittering through that patch.");
+          return;
+        }
+        const tower = game.towers.get(sourceKey);
+        if (!tower) {
+          movingCellRef.current = null;
+          setMovingCell(null);
+          return;
+        }
+        game.towers.delete(sourceKey);
+        game.towers.set(key, tower);
+        const route = createPath(game.towers, game.rng, false);
+        if (!route) {
+          game.towers.delete(key);
+          game.towers.set(sourceKey, tower);
+          notify("That move blocks the last route to the Heartwood.");
+          return;
+        }
+        game.route = route;
+        rerouteEnemies(game);
+        movingCellRef.current = null;
+        setMovingCell(null);
+        setSelectedCell(point);
+        game.message = `${TOWER_DATA[tower.kind].name} moved.`;
+        game.messageUntil = game.elapsed + 2;
+        refresh();
+        return;
+      }
       if (game.towers.has(key)) {
         setSelectedCell(point);
         return;
@@ -979,9 +1045,35 @@ export default function NatureDefenseGame() {
     game.route = createPath(game.towers, game.rng, false) ?? [];
     rerouteEnemies(game);
     setSelectedCell(null);
-    notify(`Refunded ${tower.spent} gold.`);
+    notify(`${TOWER_DATA[tower.kind].name} sold for ${tower.spent} gold.`);
     refresh();
   }, [notify, refresh]);
+
+  const moveSelected = useCallback(() => {
+    const game = gameRef.current;
+    const cell = selectedCellRef.current;
+    if (!cell || game.phase === "gameover") {
+      notify("Select a guardian to move first.");
+      return;
+    }
+    const tower = game.towers.get(keyOf(cell.x, cell.y));
+    if (!tower) return;
+    movingCellRef.current = cell;
+    selectedKindRef.current = tower.kind;
+    setMovingCell(cell);
+    setSelectedKind(tower.kind);
+    setSelectedCell(null);
+    refresh();
+  }, [notify, refresh]);
+
+  const cancelMove = useCallback(() => {
+    const cell = movingCellRef.current;
+    if (!cell) return;
+    movingCellRef.current = null;
+    setMovingCell(null);
+    setSelectedCell(cell);
+    notify("Move cancelled.");
+  }, [notify]);
 
   const togglePause = useCallback(() => {
     const game = gameRef.current;
@@ -1003,6 +1095,8 @@ export default function NatureDefenseGame() {
     const next = createGame();
     next.bestWave = bestWave;
     gameRef.current = next;
+    movingCellRef.current = null;
+    setMovingCell(null);
     setSelectedCell(null);
     setSelectedKind("thorn");
     lastTimeRef.current = 0;
@@ -1053,6 +1147,9 @@ export default function NatureDefenseGame() {
         togglePause();
       } else if (event.key.toLowerCase() === "s") {
         sellSelected();
+      } else if (event.key.toLowerCase() === "m") {
+        if (movingCellRef.current) cancelMove();
+        else moveSelected();
       } else if (event.key.toLowerCase() === "f") {
         setSpeed(gameRef.current.speed === 1 ? 2 : 1);
       } else if (event.key.toLowerCase() === "n") {
@@ -1065,12 +1162,13 @@ export default function NatureDefenseGame() {
         else openHelp();
       } else if (event.key === "Escape") {
         if (helpOpen) closeHelp();
+        else if (movingCellRef.current) cancelMove();
         else setSelectedCell(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [closeHelp, helpOpen, openHelp, requestRestart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
+  }, [cancelMove, closeHelp, helpOpen, moveSelected, openHelp, requestRestart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
@@ -1190,7 +1288,9 @@ export default function NatureDefenseGame() {
 
             <div className="game-message" aria-live="polite">
               <span>✦</span>
-              {game.messageUntil > game.elapsed
+              {movingCell
+                ? `Moving ${TOWER_DATA[selectedKind].name} — click open grass or press Esc to cancel.`
+                : game.messageUntil > game.elapsed
                 ? game.message
                 : `${game.enemies.length + game.waveQueue.length} Blightlings active · next wave in ${Math.ceil(game.nextWaveIn)}s`}
             </div>
@@ -1251,7 +1351,8 @@ export default function NatureDefenseGame() {
 
             <div className="hotkey-strip" aria-label="Keyboard shortcuts">
               <span><kbd>1–4</kbd> Build</span>
-              <span><kbd>S</kbd> Uproot</span>
+              <span><kbd>S</kbd> Sell</span>
+              <span><kbd>M</kbd> Move</span>
               <span><kbd>Space</kbd> Rush</span>
               <span><kbd>F</kbd> Speed</span>
               <span><kbd>P</kbd> Pause</span>
@@ -1273,12 +1374,17 @@ export default function NatureDefenseGame() {
                 <span>
                   {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).range.toFixed(1)} range
                 </span>
-                <button
-                  onClick={sellSelected}
-                  disabled={game.phase !== "intermission"}
-                >
-                  Uproot +{inspectedTower.spent} <kbd>S</kbd>
-                </button>
+                <div className="tower-actions">
+                  <button onClick={moveSelected}>
+                    Move <kbd>M</kbd>
+                  </button>
+                  <button
+                    onClick={sellSelected}
+                    disabled={game.phase !== "intermission"}
+                  >
+                    Sell +{inspectedTower.spent} <kbd>S</kbd>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1336,9 +1442,9 @@ export default function NatureDefenseGame() {
               <div>
                 <h3>Build under pressure</h3>
                 <p>
-                  You can plant guardians during any wave. Between waves,
-                  select a planted guardian and press S to uproot it for a 100%
-                  refund.
+                  You can plant or move guardians during any wave. Select one
+                  and press M, then click its new patch. Between waves, press S
+                  to sell it for a 100% refund.
                 </p>
               </div>
               <div>
@@ -1352,7 +1458,8 @@ export default function NatureDefenseGame() {
             </div>
             <div className="help-hotkeys">
               <span><kbd>1–4</kbd> Choose guardian</span>
-              <span><kbd>S</kbd> Uproot selected</span>
+              <span><kbd>S</kbd> Sell selected</span>
+              <span><kbd>M</kbd> Move selected</span>
               <span><kbd>Space</kbd> Call wave</span>
               <span><kbd>F</kbd> Toggle speed</span>
               <span><kbd>P</kbd> Pause</span>

@@ -2300,27 +2300,6 @@ export default function NatureDefenseGame() {
                 </div>
               ) : null}
 
-              {game.buffs.length ? (
-                <aside className="buff-build" aria-label="Current Grove Blessings">
-                  <strong>Grove build</strong>
-                  <div>
-                    {BUFF_ORDER.filter((kind) => buffRank(game, kind) > 0).map((kind) => {
-                      const rank = buffRank(game, kind);
-                      return (
-                        <span
-                          key={kind}
-                          style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
-                          title={BUFF_DATA[kind].description}
-                        >
-                          <b aria-hidden="true">{BUFF_DATA[kind].icon}</b>
-                          {BUFF_DATA[kind].name}
-                          {rank > 1 ? <em>×{rank}</em> : null}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </aside>
-              ) : null}
 
               {rushWindow > 0 && !waveAnnouncement ? (
                 <div
@@ -2459,8 +2438,9 @@ export default function NatureDefenseGame() {
               )}
             </div>
 
-            <div
-              ref={guardianDockRef}
+            <div className="footer-controls">
+              <div
+                ref={guardianDockRef}
               className="guardian-dock"
               aria-label="Guardian build shortcuts"
             >
@@ -2537,7 +2517,28 @@ export default function NatureDefenseGame() {
                 );
               })}
             </div>
-
+              {game.buffs.length ? (
+                <aside className="buff-build" aria-label="Current Grove Blessings">
+                  <strong>Grove build</strong>
+                  <div>
+                    {BUFF_ORDER.filter((kind) => buffRank(game, kind) > 0).map((kind) => {
+                      const rank = buffRank(game, kind);
+                      return (
+                        <span
+                          key={kind}
+                          style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
+                          title={BUFF_DATA[kind].description}
+                        >
+                          <b aria-hidden="true">{BUFF_DATA[kind].icon}</b>
+                          {BUFF_DATA[kind].name}
+                          {rank > 1 ? <em>×{rank}</em> : null}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </aside>
+              ) : null}
+            </div>
           </div>
         </div>
       </section>

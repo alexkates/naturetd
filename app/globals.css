@@ -3290,3 +3290,160 @@ body {
     grid-template-rows: 188px 188px minmax(0, 1fr);
   }
 }
+
+
+/* Inspectable Grove Build deck */
+.footer-controls .buff-build {
+  overflow: hidden;
+}
+
+.footer-controls .buff-build > div {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+  min-height: 0;
+  padding: 4px 10px 10px 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-color: rgba(240, 201, 95, .55) transparent;
+  scrollbar-width: thin;
+}
+
+.grove-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 190px;
+  height: 132px;
+  flex: 0 0 190px;
+  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  gap: 5px 9px;
+  align-content: start;
+  margin-right: -142px;
+  padding: 11px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--buff-color) 68%, #73547e);
+  border-radius: 13px;
+  color: #513d59;
+  background:
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--buff-color) 42%, transparent), transparent 44%),
+    linear-gradient(155deg, #fffdf7, #efe3f4);
+  box-shadow: 5px 7px 16px rgba(35, 23, 42, .3);
+  outline: none;
+  transition:
+    margin-right 170ms ease,
+    transform 170ms ease,
+    box-shadow 170ms ease;
+}
+
+.grove-card:last-child,
+.grove-card:only-child {
+  margin-right: 0;
+}
+
+.grove-card:hover,
+.grove-card:focus-visible {
+  z-index: 30;
+  margin-right: 8px;
+  box-shadow:
+    0 12px 26px rgba(30, 20, 36, .42),
+    0 0 20px color-mix(in srgb, var(--buff-color) 35%, transparent);
+  transform: translateY(-2px);
+}
+
+.grove-card:focus-visible {
+  outline: 2px solid var(--buff-color);
+  outline-offset: 2px;
+}
+
+.grove-card-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  grid-row: 1 / 4;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--buff-color) 75%, #684a78);
+  border-radius: 10px;
+  color: #4d394e;
+  background: color-mix(in srgb, var(--buff-color) 58%, white);
+  font-size: var(--font-size-title);
+}
+
+.grove-card > strong,
+.grove-card > p,
+.grove-card > small {
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(-5px);
+  transition:
+    opacity 120ms ease 35ms,
+    transform 150ms ease 35ms;
+}
+
+.grove-card:hover > strong,
+.grove-card:hover > p,
+.grove-card:hover > small,
+.grove-card:focus-visible > strong,
+.grove-card:focus-visible > p,
+.grove-card:focus-visible > small,
+.grove-card:only-child > strong,
+.grove-card:only-child > p,
+.grove-card:only-child > small {
+  opacity: 1;
+  transform: none;
+}
+
+.grove-card > strong {
+  overflow: hidden;
+  color: #51335d;
+  font-size: var(--font-size-body-sm);
+  line-height: var(--line-height-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grove-card > strong em {
+  color: #a56b18;
+  font-style: normal;
+}
+
+.grove-card > p {
+  overflow: hidden;
+  color: #6f5d76;
+  font-size: var(--font-size-fine);
+  line-height: var(--line-height-body);
+}
+
+.grove-card > small {
+  overflow: hidden;
+  color: #8a6b93;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: var(--font-size-micro);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 850px) {
+  .canvas-stage {
+    --board-bottom-gutter: 382px;
+  }
+
+  .footer-controls {
+    height: 350px;
+    grid-template-rows: 100px 100px minmax(130px, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .canvas-stage {
+    --board-bottom-gutter: 556px;
+  }
+
+  .footer-controls {
+    height: 524px;
+    grid-template-rows: 188px 188px minmax(130px, 1fr);
+  }
+}

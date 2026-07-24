@@ -31,7 +31,11 @@ type BuffKind =
   | "ancientSap"
   | "tailwind"
   | "longRoots"
-  | "gildedPollen";
+  | "gildedPollen"
+  | "sunCrowned"
+  | "deepFreeze"
+  | "stormShepherd"
+  | "verdantMercy";
 type Phase = "intermission" | "wave" | "gameover";
 
 type Tower = {
@@ -79,6 +83,7 @@ type SpellEffect =
       turnAt: number;
       endsAt: number;
       hits: Record<number, number>;
+      resetsLeft: number;
     }
   | { kind: "bloom"; startedAt: number; endsAt: number };
 
@@ -151,6 +156,7 @@ type Game = {
   wavePeriod: number;
   waveAnnouncement: WaveAnnouncement | null;
   spellCharges: Record<SpellKind, number>;
+  spellCasts: Record<SpellKind, number>;
   spellEffects: SpellEffect[];
   spellsCast: number;
   buffs: BuffKind[];
@@ -257,7 +263,7 @@ const SPELL_DATA: Record<SpellKind, {
     cost: 320,
     icon: "☀",
     color: "#ffd35a",
-    description: "High damage · 2s blind + stun",
+    description: "18-target blast · stun up to 32",
     hotkey: "⇧1",
     radius: 4.2,
   },
@@ -266,7 +272,7 @@ const SPELL_DATA: Record<SpellKind, {
     cost: 415,
     icon: "❄",
     color: "#8ee8ff",
-    description: "6 damage waves · heavy slow",
+    description: "6 capped damage waves · heavy slow",
     hotkey: "⇧2",
     radius: 3.5,
   },
@@ -275,7 +281,7 @@ const SPELL_DATA: Record<SpellKind, {
     cost: 600,
     icon: "◉",
     color: "#d8f5c0",
-    description: "3 roam for 30s · reset hits",
+    description: "3 roam for 30s · 30 total resets",
     hotkey: "⇧3",
     radius: 0.8,
   },
@@ -284,7 +290,7 @@ const SPELL_DATA: Record<SpellKind, {
     cost: 750,
     icon: "✿",
     color: "#f3a6df",
-    description: "Map pulse · execute · heal 3",
+    description: "Hits 40 · execute wounded · heal 3",
     hotkey: "⇧4",
   },
 };
@@ -379,6 +385,34 @@ const BUFF_DATA: Record<BuffKind, {
     family: "Grove blessing",
     description: "Every Blightling bounty is worth 30% more gold.",
     color: "#f1bd54",
+  },
+  sunCrowned: {
+    name: "Sun-Crowned",
+    icon: "☀",
+    family: "Solar Flare mutation",
+    description: "Solar Flare scorches 6 more targets and stuns 10 more.",
+    color: "#ffd35a",
+  },
+  deepFreeze: {
+    name: "Deep Freeze",
+    icon: "❄",
+    family: "Ice Storm mutation",
+    description: "Each Ice Storm wave hits 2 more targets and deals 8% more damage.",
+    color: "#8ee8ff",
+  },
+  stormShepherd: {
+    name: "Storm Shepherd",
+    icon: "◉",
+    family: "Wild Tornado mutation",
+    description: "Wild Tornadoes gains another twister and 3 resets per twister.",
+    color: "#d8f5c0",
+  },
+  verdantMercy: {
+    name: "Verdant Mercy",
+    icon: "✿",
+    family: "Heartwood Bloom mutation",
+    description: "Heartwood Bloom hits 10 more, heals 2 more, and executes 5% sooner.",
+    color: "#f3a6df",
   },
 };
 const BUFF_ORDER = Object.keys(BUFF_DATA) as BuffKind[];
@@ -544,6 +578,7 @@ function createGame(seed = newSeed()): Game {
     wavePeriod: 30,
     waveAnnouncement: null,
     spellCharges: { solar: 0, ice: 0, tornado: 0, bloom: 0 },
+    spellCasts: { solar: 0, ice: 0, tornado: 0, bloom: 0 },
     spellEffects: [],
     spellsCast: 0,
     buffs: [],
@@ -564,6 +599,26 @@ function upgradeCost(tower: Tower) {
 
 function buffRank(game: Game, kind: BuffKind) {
   return game.buffs.filter((buff) => buff === kind).length;
+}
+
+function spellCost(game: Game, kind: SpellKind) {
+  const multiplier = Math.min(3, Math.pow(1.16, game.spellCasts[kind]));
+  return Math.round(SPELL_DATA[kind].cost * multiplier);
+}
+
+function spellTargets(
+  game: Game,
+  predicate: (enemy: Enemy) => boolean,
+  limit: number,
+) {
+  return game.enemies
+    .filter((enemy) => !enemy.dead && predicate(enemy))
+    .sort(
+      (a, b) =>
+        distance({ x: a.x, y: a.y }, CITY) -
+        distance({ x: b.x, y: b.y }, CITY),
+    )
+    .slice(0, limit);
 }
 
 function offerBuffChoices(game: Game) {
@@ -1030,15 +1085,28 @@ export default function NatureDefenseGame() {
       for (const effect of game.spellEffects) {
         if (effect.kind === "ice") {
           while (game.elapsed >= effect.nextTick && effect.nextTick <= effect.endsAt) {
-            for (const enemy of game.enemies) {
-              if (
-                !enemy.dead &&
-                distance(effect.center, { x: enemy.x, y: enemy.y }) <= 3.5
-              ) {
-                damageEnemyWithSpell(game, enemy, spellPower * 0.72);
-                enemy.slowFactor = Math.min(enemy.slowFactor, 0.38);
-                enemy.slowUntil = Math.max(enemy.slowUntil, game.elapsed + 1.35);
+            const deepFreezeRank = buffRank(game, "deepFreeze");
+            const slowTargets = spellTargets(
+              game,
+              (enemy) =>
+                distance(effect.center, { x: enemy.x, y: enemy.y }) <= 3.5,
+              24 + deepFreezeRank * 3,
+            );
+            const damageTargetIds = new Set(
+              slowTargets
+                .slice(0, 14 + deepFreezeRank * 2)
+                .map((enemy) => enemy.id),
+            );
+            for (const enemy of slowTargets) {
+              if (damageTargetIds.has(enemy.id)) {
+                damageEnemyWithSpell(
+                  game,
+                  enemy,
+                  spellPower * 0.62 * (1 + deepFreezeRank * 0.08),
+                );
               }
+              enemy.slowFactor = Math.min(enemy.slowFactor, 0.38);
+              enemy.slowUntil = Math.max(enemy.slowUntil, game.elapsed + 1.35);
             }
             effect.nextTick += 1;
           }
@@ -1060,6 +1128,7 @@ export default function NatureDefenseGame() {
           for (const enemy of game.enemies) {
             if (
               !enemy.dead &&
+              effect.resetsLeft > 0 &&
               distance({ x: effect.x, y: effect.y }, { x: enemy.x, y: enemy.y }) <= 0.82 &&
               game.elapsed - (effect.hits[enemy.id] ?? -Infinity) > 1.1
             ) {
@@ -1070,6 +1139,7 @@ export default function NatureDefenseGame() {
                 enemy.x = START.x + 0.5;
                 enemy.y = START.y + 0.5;
                 effect.hits[enemy.id] = game.elapsed;
+                effect.resetsLeft -= 1;
               }
             }
           }
@@ -1485,15 +1555,16 @@ export default function NatureDefenseGame() {
       const kind = selectedSpellRef.current;
       if (!kind) return false;
       const game = gameRef.current;
+      const refund = spellCost(game, kind);
       if (game.spellCharges[kind] > 0) {
         game.spellCharges[kind] -= 1;
-        game.gold += SPELL_DATA[kind].cost;
-        game.goldSpent = Math.max(0, game.goldSpent - SPELL_DATA[kind].cost);
+        game.gold += refund;
+        game.goldSpent = Math.max(0, game.goldSpent - refund);
       }
       selectedSpellRef.current = null;
       setSelectedSpell(null);
       if (announce) {
-        game.message = `${SPELL_DATA[kind].name} cancelled — ${formatNumber(SPELL_DATA[kind].cost)} gold refunded.`;
+        game.message = `${SPELL_DATA[kind].name} cancelled — ${formatNumber(refund)} gold refunded.`;
         game.messageUntil = game.elapsed + 3.5;
       }
       refresh();
@@ -1515,18 +1586,19 @@ export default function NatureDefenseGame() {
       const game = gameRef.current;
       if (game.phase === "gameover" || game.pendingBuffChoices) return;
       const spell = SPELL_DATA[kind];
+      const cost = spellCost(game, kind);
       if (selectedSpellRef.current === kind) {
         cancelSpell();
         return;
       }
       if (selectedSpellRef.current) cancelSpell(false);
       if (game.spellCharges[kind] <= 0) {
-        if (game.gold < spell.cost) {
-          notify(`Need ${formatNumber(spell.cost - game.gold)} more gold for ${spell.name}.`);
+        if (game.gold < cost) {
+          notify(`Need ${formatNumber(cost - game.gold)} more gold for ${spell.name}.`);
           return;
         }
-        game.gold -= spell.cost;
-        game.goldSpent += spell.cost;
+        game.gold -= cost;
+        game.goldSpent += cost;
         game.spellCharges[kind] += 1;
       }
       movingCellRef.current = null;
@@ -1546,14 +1618,30 @@ export default function NatureDefenseGame() {
       const game = gameRef.current;
       if (game.spellCharges[kind] <= 0 || game.phase === "gameover") return;
       const spellPower = 55 * Math.pow(1.16, Math.max(0, game.wave - 1));
+
       if (kind === "solar") {
-        for (const enemy of game.enemies) {
-          const separation = distance(center, { x: enemy.x, y: enemy.y });
-          if (separation <= 4.2) enemy.stunUntil = Math.max(enemy.stunUntil, game.elapsed + 2);
-          if (separation <= 2.6) {
-            enemy.blindUntil = Math.max(enemy.blindUntil, game.elapsed + 2);
-            damageEnemyWithSpell(game, enemy, spellPower * 4.8);
-          }
+        const sunRank = buffRank(game, "sunCrowned");
+        const stunTargets = spellTargets(
+          game,
+          (enemy) => distance(center, { x: enemy.x, y: enemy.y }) <= 4.2,
+          32 + sunRank * 10,
+        );
+        const damageTargets = spellTargets(
+          game,
+          (enemy) => distance(center, { x: enemy.x, y: enemy.y }) <= 2.6,
+          18 + sunRank * 6,
+        );
+        for (const enemy of stunTargets) {
+          enemy.stunUntil = Math.max(enemy.stunUntil, game.elapsed + 2);
+        }
+        for (const enemy of damageTargets) {
+          enemy.stunUntil = Math.max(enemy.stunUntil, game.elapsed + 2);
+          enemy.blindUntil = Math.max(enemy.blindUntil, game.elapsed + 2);
+          damageEnemyWithSpell(
+            game,
+            enemy,
+            spellPower * 4.8 * (1 + sunRank * 0.12),
+          );
         }
         game.spellEffects.push({
           kind: "solar",
@@ -1570,32 +1658,48 @@ export default function NatureDefenseGame() {
           nextTick: game.elapsed + 1,
         });
       } else if (kind === "tornado") {
-        for (let index = 0; index < 3; index += 1) {
+        const stormRank = buffRank(game, "stormShepherd");
+        const tornadoCount = Math.min(6, 3 + stormRank);
+        for (let index = 0; index < tornadoCount; index += 1) {
           game.spellEffects.push({
             kind: "tornado",
             x: center.x,
             y: center.y,
-            angle: (Math.PI * 2 * index) / 3 + game.rng() * 0.7,
+            angle:
+              (Math.PI * 2 * index) / tornadoCount + game.rng() * 0.7,
             turnAt: game.elapsed + 0.5 + game.rng(),
             endsAt: game.elapsed + 30,
             hits: {},
+            resetsLeft: 10 + stormRank * 3,
           });
         }
       } else {
-        for (const enemy of game.enemies) {
-          const damage = enemy.hp / enemy.maxHp <= 0.3 ? enemy.hp : enemy.maxHp * 0.28;
+        const mercyRank = buffRank(game, "verdantMercy");
+        const executeThreshold = Math.min(0.6, 0.25 + mercyRank * 0.05);
+        const targets = spellTargets(
+          game,
+          () => true,
+          40 + mercyRank * 10,
+        );
+        for (const enemy of targets) {
+          const damage =
+            enemy.hp / enemy.maxHp <= executeThreshold
+              ? enemy.hp
+              : enemy.maxHp * 0.28;
           damageEnemyWithSpell(game, enemy, damage);
         }
-        game.health = Math.min(20, game.health + 3);
+        game.health = Math.min(20, game.health + 3 + mercyRank * 2);
         game.spellEffects.push({
           kind: "bloom",
           startedAt: game.elapsed,
           endsAt: game.elapsed + 1.25,
         });
       }
+
       game.spellCharges[kind] -= 1;
+      game.spellCasts[kind] += 1;
       game.spellsCast += 1;
-      game.message = `${SPELL_DATA[kind].name} unleashed!`;
+      game.message = SPELL_DATA[kind].name + " unleashed!";
       game.messageUntil = game.elapsed + 3;
       selectedSpellRef.current = null;
       setSelectedSpell(null);
@@ -2489,6 +2593,7 @@ export default function NatureDefenseGame() {
               {SPELL_ORDER.map((kind) => {
                 const spell = SPELL_DATA[kind];
                 const charges = game.spellCharges[kind];
+                const cost = spellCost(game, kind);
                 return (
                   <button
                     key={kind}
@@ -2504,13 +2609,13 @@ export default function NatureDefenseGame() {
                       <em>{spell.description}</em>
                       <small>
                         <kbd>{spell.hotkey}</kbd>
-                        {charges ? `${charges} ready` : `${formatNumber(spell.cost)} gold`}
+                        {charges ? `${charges} ready` : `${formatNumber(cost)} gold`}
                       </small>
                     </span>
                     <span className="spell-tooltip" role="tooltip">
                       <strong>{spell.name}</strong>
                       <span>{spell.description}</span>
-                      <span>{charges ? `${charges} charge ready` : `Buy one charge for ${formatNumber(spell.cost)} gold`}</span>
+                      <span>{charges ? `${charges} charge ready` : `Buy one charge for ${formatNumber(cost)} gold`}</span>
                       <b>Press {spell.hotkey}, then click the field</b>
                     </span>
                   </button>
@@ -2524,15 +2629,23 @@ export default function NatureDefenseGame() {
                     {BUFF_ORDER.filter((kind) => buffRank(game, kind) > 0).map((kind) => {
                       const rank = buffRank(game, kind);
                       return (
-                        <span
+                        <article
                           key={kind}
+                          className="grove-card"
+                          tabIndex={0}
                           style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
-                          title={BUFF_DATA[kind].description}
+                          aria-label={BUFF_DATA[kind].name + (rank > 1 ? ` rank ${rank}` : "") + ". " + BUFF_DATA[kind].description}
                         >
-                          <b aria-hidden="true">{BUFF_DATA[kind].icon}</b>
-                          {BUFF_DATA[kind].name}
-                          {rank > 1 ? <em>×{rank}</em> : null}
-                        </span>
+                          <b className="grove-card-icon" aria-hidden="true">
+                            {BUFF_DATA[kind].icon}
+                          </b>
+                          <strong>
+                            {BUFF_DATA[kind].name}
+                            {rank > 1 ? <em> ×{rank}</em> : null}
+                          </strong>
+                          <p>{BUFF_DATA[kind].description}</p>
+                          <small>{BUFF_DATA[kind].family}</small>
+                        </article>
                       );
                     })}
                   </div>
@@ -2607,8 +2720,7 @@ export default function NatureDefenseGame() {
                 <h3>Buy wild magic</h3>
                 <p>
                   Press Shift+1–4 to buy and arm a one-use spell, then click the
-                  field to cast it. Each purchase grants one charge; casting
-                  consumes it. Solar Flare shows separate damage and stun rings.
+                  field to cast it. Each purchase grants one charge; casting consumes it. Repeated uses cost 16% more, up to 3×. Spells prioritize threats nearest the Heartwood and have target limits; Solar Flare shows separate damage and stun rings.
                 </p>
               </div>
             </div>

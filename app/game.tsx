@@ -513,7 +513,7 @@ export default function NatureDefenseGame() {
         TOWER_DATA[kind].image,
         TOWER_DATA[kind].guardian,
       ]),
-      "/assets/blight-sprites/blight-atlas-v2.png",
+      "/assets/blight-sprites/blight-atlas-v3.png",
       "/assets/endpoints/blight-rift.png",
       "/assets/endpoints/heartwood.png",
     ];
@@ -922,7 +922,7 @@ export default function NatureDefenseGame() {
 
     const sortedEnemies = [...game.enemies].sort((a, b) => a.y - b.y);
     for (const enemy of sortedEnemies) {
-      const atlas = imagesRef.current.get("/assets/blight-sprites/blight-atlas-v2.png");
+      const atlas = imagesRef.current.get("/assets/blight-sprites/blight-atlas-v3.png");
       const fallback = imagesRef.current.get(invaderImagePath(enemy.invader));
       const next = enemy.path[enemy.pathIndex + 1];
       const dx = next ? next.x + 0.5 - enemy.x : 1;

@@ -1720,6 +1720,123 @@ body {
   box-shadow: 0 4px 0 rgba(99, 66, 119, 0.22);
 }
 
+body {
+  font-size: 16px;
+}
+
+.eyebrow,
+.hud-topbar .eyebrow {
+  font-size: 10px;
+}
+
+.hud-topbar h1 {
+  font-size: clamp(20px, 1.8vw, 27px);
+}
+
+.hud-topbar .resource span {
+  font-size: 10px;
+}
+
+.hud-topbar .resource strong {
+  font-size: 17px;
+}
+
+.hud-actions button,
+.rush-button,
+.help-button,
+.phase-pill {
+  font-size: 12px;
+}
+
+.game-message {
+  font-size: 12px;
+}
+
+.wave-peek,
+.dock-label,
+.hotkey-strip {
+  font-size: 10px;
+}
+
+.guardian-dock strong {
+  font-size: 12px;
+}
+
+.guardian-dock small {
+  font-size: 10px;
+}
+
+.guardian-tooltip {
+  width: 230px;
+}
+
+.guardian-tooltip > strong {
+  font-size: 13px;
+}
+
+.guardian-tooltip > span,
+.tower-popover button {
+  font-size: 11px;
+}
+
+.tower-popover {
+  min-width: 205px;
+}
+
+.tower-popover strong {
+  font-size: 13px;
+}
+
+.tower-popover > span {
+  font-size: 10px;
+}
+
+.wave-announcement p,
+.wave-announcement small,
+.wave-roster span {
+  font-size: 11px;
+}
+
+.wave-announcement > strong {
+  font-size: 13px;
+}
+
+.help-grid h3 {
+  font-size: 15px;
+}
+
+.help-grid p {
+  font-size: 13px;
+}
+
+.help-hotkeys span,
+.replay-intro-button {
+  font-size: 11px;
+}
+
+.intro-skip,
+.intro-actions > span {
+  font-size: 11px;
+}
+
+.intro-copy {
+  font-size: 14px;
+}
+
+.intro-actions > button {
+  font-size: 12px;
+}
+
+.game-over-lede,
+.rush-recap strong {
+  font-size: 13px;
+}
+
+.run-stats span,
+.rush-recap p {
+  font-size: 10px;
+}
+
 @media (max-width: 1250px) {
   .hud-topbar {
     grid-template-columns: auto 1fr;

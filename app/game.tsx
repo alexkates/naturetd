@@ -18,6 +18,7 @@ const CITY = { x: 19, y: 5 };
 
 type Point = { x: number; y: number };
 type TowerKind = "thorn" | "frost" | "boulder" | "lightning";
+type SpellKind = "solar" | "ice" | "tornado" | "bloom";
 type Phase = "intermission" | "wave" | "gameover";
 
 type Tower = {
@@ -43,8 +44,30 @@ type Enemy = {
   cityDamage: number;
   slowUntil: number;
   slowFactor: number;
+  stunUntil: number;
+  blindUntil: number;
   dead: boolean;
 };
+
+type SpellEffect =
+  | { kind: "solar"; center: Point; startedAt: number; endsAt: number }
+  | {
+      kind: "ice";
+      center: Point;
+      startedAt: number;
+      endsAt: number;
+      nextTick: number;
+    }
+  | {
+      kind: "tornado";
+      x: number;
+      y: number;
+      angle: number;
+      turnAt: number;
+      endsAt: number;
+      hits: Record<number, number>;
+    }
+  | { kind: "bloom"; startedAt: number; endsAt: number };
 
 type Projectile = {
   from: Point;
@@ -111,6 +134,9 @@ type Game = {
   nextWaveIn: number;
   wavePeriod: number;
   waveAnnouncement: WaveAnnouncement | null;
+  spellCharges: Record<SpellKind, number>;
+  spellEffects: SpellEffect[];
+  spellsCast: number;
 };
 
 const BLIGHTLINGS: Invader[] = [
@@ -198,6 +224,52 @@ const TOWER_DATA: Record<
 };
 
 const TOWER_ORDER = Object.keys(TOWER_DATA) as TowerKind[];
+const SPELL_DATA: Record<SpellKind, {
+  name: string;
+  cost: number;
+  icon: string;
+  color: string;
+  description: string;
+  hotkey: string;
+  radius?: number;
+}> = {
+  solar: {
+    name: "Solar Flare",
+    cost: 425,
+    icon: "☀",
+    color: "#ffd35a",
+    description: "High damage · 2s blind + stun",
+    hotkey: "⇧1",
+    radius: 4.2,
+  },
+  ice: {
+    name: "Ice Storm",
+    cost: 550,
+    icon: "❄",
+    color: "#8ee8ff",
+    description: "6 damage waves · heavy slow",
+    hotkey: "⇧2",
+    radius: 3.5,
+  },
+  tornado: {
+    name: "Wild Tornadoes",
+    cost: 800,
+    icon: "◉",
+    color: "#d8f5c0",
+    description: "3 roam for 30s · reset hits",
+    hotkey: "⇧3",
+    radius: 0.8,
+  },
+  bloom: {
+    name: "Heartwood Bloom",
+    cost: 1000,
+    icon: "✿",
+    color: "#f3a6df",
+    description: "Map pulse · execute · heal 3",
+    hotkey: "⇧4",
+  },
+};
+const SPELL_ORDER = Object.keys(SPELL_DATA) as SpellKind[];
 const NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
 const INTRO_STORAGE_KEY = "nature-defense-intro-v1";
 const INTRO_STEPS = [
@@ -358,6 +430,9 @@ function createGame(seed = newSeed()): Game {
     nextWaveIn: 30,
     wavePeriod: 30,
     waveAnnouncement: null,
+    spellCharges: { solar: 0, ice: 0, tornado: 0, bloom: 0 },
+    spellEffects: [],
+    spellsCast: 0,
   };
 }
 
@@ -462,6 +537,7 @@ export default function NatureDefenseGame() {
   const imagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const hoverRef = useRef<Point | null>(null);
   const selectedKindRef = useRef<TowerKind>("thorn");
+  const selectedSpellRef = useRef<SpellKind | null>(null);
   const selectedCellRef = useRef<Point | null>(null);
   const movingCellRef = useRef<Point | null>(null);
   const helpPausedRef = useRef(false);
@@ -470,6 +546,7 @@ export default function NatureDefenseGame() {
   const lastTimeRef = useRef<number>(0);
   const [, setRevision] = useState(0);
   const [selectedKind, setSelectedKind] = useState<TowerKind>("thorn");
+  const [selectedSpell, setSelectedSpell] = useState<SpellKind | null>(null);
   const [selectedCell, setSelectedCell] = useState<Point | null>(null);
   const [movingCell, setMovingCell] = useState<Point | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -496,6 +573,10 @@ export default function NatureDefenseGame() {
   useEffect(() => {
     selectedKindRef.current = selectedKind;
   }, [selectedKind]);
+
+  useEffect(() => {
+    selectedSpellRef.current = selectedSpell;
+  }, [selectedSpell]);
 
   useEffect(() => {
     selectedCellRef.current = selectedCell;
@@ -558,6 +639,22 @@ export default function NatureDefenseGame() {
       if (enemy.hp <= 0) {
         enemy.dead = true;
         tower.kills += 1;
+        game.kills += 1;
+        game.gold += enemy.bounty;
+        game.goldEarned += enemy.bounty;
+      }
+    },
+    [],
+  );
+
+  const damageEnemyWithSpell = useCallback(
+    (game: Game, enemy: Enemy, damageAmount: number) => {
+      if (enemy.dead) return;
+      const applied = Math.min(enemy.hp, damageAmount);
+      enemy.hp -= damageAmount;
+      game.damage += applied;
+      if (enemy.hp <= 0) {
+        enemy.dead = true;
         game.kills += 1;
         game.gold += enemy.bounty;
         game.goldEarned += enemy.bounty;
@@ -682,6 +779,8 @@ export default function NatureDefenseGame() {
       cityDamage: invader.cityDamage ?? 1,
       slowUntil: 0,
       slowFactor: 1,
+      stunUntil: 0,
+      blindUntil: 0,
       dead: false,
     });
   }, []);
@@ -707,8 +806,62 @@ export default function NatureDefenseGame() {
         game.spawnClock = game.spawnInterval;
       }
 
+      const spellPower = 55 * Math.pow(1.16, Math.max(0, game.wave - 1));
+      for (const effect of game.spellEffects) {
+        if (effect.kind === "ice") {
+          while (game.elapsed >= effect.nextTick && effect.nextTick <= effect.endsAt) {
+            for (const enemy of game.enemies) {
+              if (
+                !enemy.dead &&
+                distance(effect.center, { x: enemy.x, y: enemy.y }) <= 3.5
+              ) {
+                damageEnemyWithSpell(game, enemy, spellPower * 0.72);
+                enemy.slowFactor = Math.min(enemy.slowFactor, 0.38);
+                enemy.slowUntil = Math.max(enemy.slowUntil, game.elapsed + 1.35);
+              }
+            }
+            effect.nextTick += 1;
+          }
+        } else if (effect.kind === "tornado") {
+          if (game.elapsed >= effect.turnAt) {
+            effect.angle += (game.rng() - 0.5) * 2.4;
+            effect.turnAt = game.elapsed + 0.65 + game.rng() * 1.15;
+          }
+          effect.x += Math.cos(effect.angle) * delta * 2.3;
+          effect.y += Math.sin(effect.angle) * delta * 2.3;
+          if (effect.x < 0.35 || effect.x > COLS - 0.35) {
+            effect.angle = Math.PI - effect.angle;
+            effect.x = Math.max(0.35, Math.min(COLS - 0.35, effect.x));
+          }
+          if (effect.y < 0.35 || effect.y > ROWS - 0.35) {
+            effect.angle = -effect.angle;
+            effect.y = Math.max(0.35, Math.min(ROWS - 0.35, effect.y));
+          }
+          for (const enemy of game.enemies) {
+            if (
+              !enemy.dead &&
+              distance({ x: effect.x, y: effect.y }, { x: enemy.x, y: enemy.y }) <= 0.82 &&
+              game.elapsed - (effect.hits[enemy.id] ?? -Infinity) > 1.1
+            ) {
+              const path = createPath(game.towers, game.rng, true);
+              if (path) {
+                enemy.path = path;
+                enemy.pathIndex = 0;
+                enemy.x = START.x + 0.5;
+                enemy.y = START.y + 0.5;
+                effect.hits[enemy.id] = game.elapsed;
+              }
+            }
+          }
+        }
+      }
+      game.spellEffects = game.spellEffects.filter(
+        (effect) => effect.endsAt > game.elapsed,
+      );
+
       for (const enemy of game.enemies) {
         if (enemy.dead) continue;
+        if (enemy.stunUntil > game.elapsed) continue;
         const next = enemy.path[enemy.pathIndex + 1];
         if (!next) {
           enemy.dead = true;
@@ -773,7 +926,7 @@ export default function NatureDefenseGame() {
         game.messageUntil = game.elapsed + 4;
       }
     },
-    [fireTower, refresh, spawnEnemy, syncBest],
+    [damageEnemyWithSpell, fireTower, refresh, spawnEnemy, syncBest],
   );
 
   const drawGame = useCallback(() => {
@@ -841,55 +994,83 @@ export default function NatureDefenseGame() {
 
     const hover = hoverRef.current;
     if (hover && game.phase !== "gameover") {
-      const occupied = game.towers.has(keyOf(hover.x, hover.y));
-      const forbidden =
-        (hover.x === START.x && hover.y === START.y) ||
-        (hover.x === CITY.x && hover.y === CITY.y);
-      const affordable =
-        movingCellRef.current !== null ||
-        game.gold >= TOWER_DATA[selectedKindRef.current].cost;
-      context.fillStyle =
-        occupied || forbidden || !affordable
-          ? "rgba(244, 87, 80, .35)"
-          : "rgba(226, 245, 132, .27)";
-      context.fillRect(hover.x * CELL + 1, hover.y * CELL + 1, CELL - 2, CELL - 2);
-      if (!occupied) {
-        const selectedTower = TOWER_DATA[selectedKindRef.current];
-        context.strokeStyle = selectedTower.color;
-        context.setLineDash([7, 5]);
-        context.lineWidth = 2;
-        context.beginPath();
-        context.arc(
-          (hover.x + 0.5) * CELL,
-          (hover.y + 0.5) * CELL,
-          selectedTower.range * CELL,
-          0,
-          Math.PI * 2,
-        );
-        context.stroke();
+      const armedSpell = selectedSpellRef.current;
+      if (armedSpell) {
+        const spell = SPELL_DATA[armedSpell];
+        const centerX = (hover.x + 0.5) * CELL;
+        const centerY = (hover.y + 0.5) * CELL;
+        context.fillStyle = `${spell.color}30`;
+        context.strokeStyle = spell.color;
+        context.lineWidth = 2.5;
+        context.setLineDash([9, 6]);
+        if (armedSpell === "bloom") {
+          context.fillRect(0, 0, WIDTH, HEIGHT);
+          context.strokeRect(3, 3, WIDTH - 6, HEIGHT - 6);
+        } else {
+          context.beginPath();
+          context.arc(centerX, centerY, (spell.radius ?? 1) * CELL, 0, Math.PI * 2);
+          context.fill();
+          context.stroke();
+          if (armedSpell === "solar") {
+            context.strokeStyle = "#fff4b0";
+            context.setLineDash([4, 4]);
+            context.beginPath();
+            context.arc(centerX, centerY, 2.6 * CELL, 0, Math.PI * 2);
+            context.stroke();
+          }
+        }
         context.setLineDash([]);
-        const ghost = imagesRef.current.get(selectedTower.image);
-        context.globalAlpha = 0.72;
-        if (ghost?.complete) {
-          context.drawImage(
-            ghost,
-            hover.x * CELL + 1,
-            hover.y * CELL + 1,
-            CELL - 2,
-            CELL - 2,
+      } else {
+        const occupied = game.towers.has(keyOf(hover.x, hover.y));
+        const forbidden =
+          (hover.x === START.x && hover.y === START.y) ||
+          (hover.x === CITY.x && hover.y === CITY.y);
+        const affordable =
+          movingCellRef.current !== null ||
+          game.gold >= TOWER_DATA[selectedKindRef.current].cost;
+        context.fillStyle =
+          occupied || forbidden || !affordable
+            ? "rgba(244, 87, 80, .35)"
+            : "rgba(226, 245, 132, .27)";
+        context.fillRect(hover.x * CELL + 1, hover.y * CELL + 1, CELL - 2, CELL - 2);
+        if (!occupied) {
+          const selectedTower = TOWER_DATA[selectedKindRef.current];
+          context.strokeStyle = selectedTower.color;
+          context.setLineDash([7, 5]);
+          context.lineWidth = 2;
+          context.beginPath();
+          context.arc(
+            (hover.x + 0.5) * CELL,
+            (hover.y + 0.5) * CELL,
+            selectedTower.range * CELL,
+            0,
+            Math.PI * 2,
           );
+          context.stroke();
+          context.setLineDash([]);
+          const ghost = imagesRef.current.get(selectedTower.image);
+          context.globalAlpha = 0.72;
+          if (ghost?.complete) {
+            context.drawImage(
+              ghost,
+              hover.x * CELL + 1,
+              hover.y * CELL + 1,
+              CELL - 2,
+              CELL - 2,
+            );
+          }
+          const guardian = imagesRef.current.get(selectedTower.guardian);
+          if (guardian?.complete) {
+            context.drawImage(
+              guardian,
+              hover.x * CELL + 17,
+              hover.y * CELL + 13,
+              22,
+              22,
+            );
+          }
+          context.globalAlpha = 1;
         }
-        const guardian = imagesRef.current.get(selectedTower.guardian);
-        if (guardian?.complete) {
-          context.drawImage(
-            guardian,
-            hover.x * CELL + 17,
-            hover.y * CELL + 13,
-            22,
-            22,
-          );
-        }
-        context.globalAlpha = 1;
       }
     }
 
@@ -920,6 +1101,62 @@ export default function NatureDefenseGame() {
       }
     }
 
+    for (const effect of game.spellEffects) {
+      const remaining = Math.max(0, effect.endsAt - game.elapsed);
+      if (effect.kind === "solar") {
+        const progress = (game.elapsed - effect.startedAt) / (effect.endsAt - effect.startedAt);
+        context.globalAlpha = Math.max(0, 1 - progress);
+        context.fillStyle = "rgba(255, 226, 92, .5)";
+        context.beginPath();
+        context.arc(effect.center.x * CELL, effect.center.y * CELL, 2.6 * CELL * (0.7 + progress * 0.3), 0, Math.PI * 2);
+        context.fill();
+        context.strokeStyle = "#fff4a6";
+        context.lineWidth = 8 * (1 - progress) + 2;
+        context.beginPath();
+        context.arc(effect.center.x * CELL, effect.center.y * CELL, 4.2 * CELL * progress, 0, Math.PI * 2);
+        context.stroke();
+        context.globalAlpha = 1;
+      } else if (effect.kind === "ice") {
+        const pulse = 0.86 + Math.sin(game.elapsed * Math.PI * 2) * 0.08;
+        context.fillStyle = "rgba(118, 220, 255, .2)";
+        context.strokeStyle = "rgba(198, 246, 255, .9)";
+        context.lineWidth = 3;
+        context.setLineDash([5, 8]);
+        context.beginPath();
+        context.arc(effect.center.x * CELL, effect.center.y * CELL, 3.5 * CELL * pulse, 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
+        context.setLineDash([]);
+        for (let shard = 0; shard < 12; shard += 1) {
+          const angle = shard * 2.4 + game.elapsed * (1.6 + (shard % 3) * 0.2);
+          const radius = (0.5 + (shard % 4) * 0.7) * CELL;
+          const x = effect.center.x * CELL + Math.cos(angle) * radius;
+          const y = effect.center.y * CELL + Math.sin(angle) * radius;
+          context.fillStyle = "#d9f8ff";
+          context.fillRect(x - 2, y - 5, 4, 10);
+        }
+      } else if (effect.kind === "tornado") {
+        const x = effect.x * CELL;
+        const y = effect.y * CELL;
+        context.strokeStyle = "rgba(229, 255, 210, .9)";
+        context.lineWidth = 4;
+        for (let ring = 0; ring < 3; ring += 1) {
+          context.beginPath();
+          context.arc(x, y - ring * 7, 9 + ring * 5 + Math.sin(game.elapsed * 8 + ring) * 2, 0.2, Math.PI * 1.8);
+          context.stroke();
+        }
+      } else {
+        const progress = 1 - remaining / (effect.endsAt - effect.startedAt);
+        context.globalAlpha = Math.max(0, 1 - progress);
+        context.fillStyle = "rgba(236, 139, 215, .28)";
+        context.fillRect(0, 0, WIDTH, HEIGHT);
+        context.strokeStyle = "#f5d0ed";
+        context.lineWidth = 12 * (1 - progress) + 2;
+        context.strokeRect(progress * WIDTH * 0.48, progress * HEIGHT * 0.48, WIDTH * (1 - progress * 0.96), HEIGHT * (1 - progress * 0.96));
+        context.globalAlpha = 1;
+      }
+    }
+
     const sortedEnemies = [...game.enemies].sort((a, b) => a.y - b.y);
     for (const enemy of sortedEnemies) {
       const atlas = imagesRef.current.get("/assets/blight-sprites/blight-atlas-v6.png");
@@ -933,6 +1170,14 @@ export default function NatureDefenseGame() {
       const drawX = enemy.x * CELL - spriteSize / 2;
       const bob = Math.sin(game.elapsed * 7 + enemy.id) * 0.65;
       const drawY = enemy.y * CELL - spriteSize / 2 + bob;
+      if (enemy.stunUntil > game.elapsed || enemy.blindUntil > game.elapsed) {
+        context.fillStyle = enemy.blindUntil > game.elapsed
+          ? "rgba(255, 224, 92, .34)"
+          : "rgba(255, 244, 190, .24)";
+        context.beginPath();
+        context.arc(enemy.x * CELL, enemy.y * CELL, 18, 0, Math.PI * 2);
+        context.fill();
+      }
       if (enemy.slowUntil > game.elapsed) {
         context.fillStyle = "rgba(120, 225, 255, .32)";
         context.beginPath();
@@ -1011,10 +1256,101 @@ export default function NatureDefenseGame() {
 
   const selectTower = useCallback((kind: TowerKind) => {
     movingCellRef.current = null;
+    selectedSpellRef.current = null;
     setMovingCell(null);
+    setSelectedSpell(null);
     setSelectedKind(kind);
     setSelectedCell(null);
   }, []);
+
+  const selectSpell = useCallback(
+    (kind: SpellKind) => {
+      const game = gameRef.current;
+      if (game.phase === "gameover") return;
+      const spell = SPELL_DATA[kind];
+      if (game.spellCharges[kind] <= 0) {
+        if (game.gold < spell.cost) {
+          notify(`Need ${formatNumber(spell.cost - game.gold)} more gold for ${spell.name}.`);
+          return;
+        }
+        game.gold -= spell.cost;
+        game.goldSpent += spell.cost;
+        game.spellCharges[kind] += 1;
+      }
+      movingCellRef.current = null;
+      selectedSpellRef.current = kind;
+      setMovingCell(null);
+      setSelectedCell(null);
+      setSelectedSpell(kind);
+      game.message = `${spell.name} armed — click the field to cast.`;
+      game.messageUntil = game.elapsed + 4;
+      refresh();
+    },
+    [notify, refresh],
+  );
+
+  const castSpell = useCallback(
+    (kind: SpellKind, center: Point) => {
+      const game = gameRef.current;
+      if (game.spellCharges[kind] <= 0 || game.phase === "gameover") return;
+      const spellPower = 55 * Math.pow(1.16, Math.max(0, game.wave - 1));
+      if (kind === "solar") {
+        for (const enemy of game.enemies) {
+          const separation = distance(center, { x: enemy.x, y: enemy.y });
+          if (separation <= 4.2) enemy.stunUntil = Math.max(enemy.stunUntil, game.elapsed + 2);
+          if (separation <= 2.6) {
+            enemy.blindUntil = Math.max(enemy.blindUntil, game.elapsed + 2);
+            damageEnemyWithSpell(game, enemy, spellPower * 4.8);
+          }
+        }
+        game.spellEffects.push({
+          kind: "solar",
+          center,
+          startedAt: game.elapsed,
+          endsAt: game.elapsed + 0.9,
+        });
+      } else if (kind === "ice") {
+        game.spellEffects.push({
+          kind: "ice",
+          center,
+          startedAt: game.elapsed,
+          endsAt: game.elapsed + 6,
+          nextTick: game.elapsed + 1,
+        });
+      } else if (kind === "tornado") {
+        for (let index = 0; index < 3; index += 1) {
+          game.spellEffects.push({
+            kind: "tornado",
+            x: center.x,
+            y: center.y,
+            angle: (Math.PI * 2 * index) / 3 + game.rng() * 0.7,
+            turnAt: game.elapsed + 0.5 + game.rng(),
+            endsAt: game.elapsed + 30,
+            hits: {},
+          });
+        }
+      } else {
+        for (const enemy of game.enemies) {
+          const damage = enemy.hp / enemy.maxHp <= 0.3 ? enemy.hp : enemy.maxHp * 0.28;
+          damageEnemyWithSpell(game, enemy, damage);
+        }
+        game.health = Math.min(20, game.health + 3);
+        game.spellEffects.push({
+          kind: "bloom",
+          startedAt: game.elapsed,
+          endsAt: game.elapsed + 1.25,
+        });
+      }
+      game.spellCharges[kind] -= 1;
+      game.spellsCast += 1;
+      game.message = `${SPELL_DATA[kind].name} unleashed!`;
+      game.messageUntil = game.elapsed + 3;
+      selectedSpellRef.current = null;
+      setSelectedSpell(null);
+      refresh();
+    },
+    [damageEnemyWithSpell, refresh],
+  );
 
   const handleCanvasClick = useCallback(
     (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1026,6 +1362,11 @@ export default function NatureDefenseGame() {
         y: Math.floor(((event.clientY - bounds.top) / bounds.height) * ROWS),
       };
       const game = gameRef.current;
+      const armedSpell = selectedSpellRef.current;
+      if (armedSpell) {
+        castSpell(armedSpell, { x: point.x + 0.5, y: point.y + 0.5 });
+        return;
+      }
       const key = keyOf(point.x, point.y);
       const movingFrom = movingCellRef.current;
       if (movingFrom) {
@@ -1135,7 +1476,7 @@ export default function NatureDefenseGame() {
       game.messageUntil = game.elapsed + 1.7;
       refresh();
     },
-    [notify, refresh, selectedKind],
+    [castSpell, notify, refresh, selectedKind],
   );
 
   const handlePointerMove = useCallback(
@@ -1245,7 +1586,9 @@ export default function NatureDefenseGame() {
     gameRef.current = next;
     movingCellRef.current = null;
     setMovingCell(null);
+    selectedSpellRef.current = null;
     setSelectedCell(null);
+    setSelectedSpell(null);
     setSelectedKind("thorn");
     lastTimeRef.current = 0;
     refresh();
@@ -1375,7 +1718,10 @@ export default function NatureDefenseGame() {
         }
         return;
       }
-      if (event.key >= "1" && event.key <= "4") {
+      if (event.shiftKey && /^Digit[1-4]$/.test(event.code)) {
+        event.preventDefault();
+        selectSpell(SPELL_ORDER[Number(event.code.slice(-1)) - 1]);
+      } else if (event.key >= "1" && event.key <= "4") {
         selectTower(TOWER_ORDER[Number(event.key) - 1]);
       } else if (event.code === "Space") {
         event.preventDefault();
@@ -1399,13 +1745,17 @@ export default function NatureDefenseGame() {
         else openHelp();
       } else if (event.key === "Escape") {
         if (helpOpen) closeHelp();
-        else if (movingCellRef.current) cancelMove();
+        else if (selectedSpellRef.current) {
+          selectedSpellRef.current = null;
+          setSelectedSpell(null);
+          notify("Spell cast cancelled. Your charge is saved.");
+        } else if (movingCellRef.current) cancelMove();
         else setSelectedCell(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelMove, closeHelp, closeIntro, helpOpen, introOpen, moveSelected, nextIntroStep, openHelp, requestRestart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
+  }, [cancelMove, closeHelp, closeIntro, helpOpen, introOpen, moveSelected, notify, nextIntroStep, openHelp, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
@@ -1538,9 +1888,11 @@ export default function NatureDefenseGame() {
           <div className="canvas-stage">
             <div className="game-message" aria-live="polite">
               <span>✦</span>
-              {movingCell
-                ? `Moving ${TOWER_DATA[selectedKind].name} — click open grass or press Esc to cancel.`
-                : game.messageUntil > game.elapsed
+              {selectedSpell
+                ? `${SPELL_DATA[selectedSpell].name} armed — click the field to cast or press Esc to cancel.`
+                : movingCell
+                  ? `Moving ${TOWER_DATA[selectedKind].name} — click open grass or press Esc to cancel.`
+                  : game.messageUntil > game.elapsed
                 ? game.message
                 : `${formatNumber(game.enemies.length + game.waveQueue.length)} Blightlings active · next wave in ${Math.ceil(game.nextWaveIn)}s`}
             </div>
@@ -1564,7 +1916,13 @@ export default function NatureDefenseGame() {
                 ref={canvasRef}
                 width={WIDTH}
                 height={HEIGHT}
-                className={game.phase !== "gameover" ? "building" : ""}
+                className={
+                  game.phase === "gameover"
+                    ? ""
+                    : selectedSpell
+                      ? "casting"
+                      : "building"
+                }
                 onClick={handleCanvasClick}
                 onMouseMove={handlePointerMove}
                 onMouseLeave={() => {
@@ -1693,6 +2051,10 @@ export default function NatureDefenseGame() {
                         <span>Battle time</span>
                         <strong>{formatDuration(game.realElapsed)}</strong>
                       </div>
+                      <div>
+                        <span>Spells unleashed</span>
+                        <strong>{formatNumber(game.spellsCast)}</strong>
+                      </div>
                     </div>
 
                     <div className={`rush-recap ${game.wavesRushed ? "" : "quiet"}`}>
@@ -1765,12 +2127,47 @@ export default function NatureDefenseGame() {
               })}
             </div>
 
+            <div className="spell-dock" aria-label="One-use spell purchases">
+              <span className="spell-dock-label">Wild magic</span>
+              {SPELL_ORDER.map((kind) => {
+                const spell = SPELL_DATA[kind];
+                const charges = game.spellCharges[kind];
+                return (
+                  <button
+                    key={kind}
+                    className={`${selectedSpell === kind ? "selected" : ""} ${charges ? "charged" : ""}`}
+                    onClick={() => selectSpell(kind)}
+                    disabled={game.phase === "gameover"}
+                    style={{ "--spell-color": spell.color } as React.CSSProperties}
+                    aria-label={`${charges ? "Arm" : "Buy and arm"} ${spell.name}. ${spell.description}`}
+                  >
+                    <span className="spell-icon" aria-hidden="true">{spell.icon}</span>
+                    <span className="spell-copy">
+                      <strong>{spell.name}</strong>
+                      <em>{spell.description}</em>
+                      <small>
+                        <kbd>{spell.hotkey}</kbd>
+                        {charges ? `${charges} ready` : `${formatNumber(spell.cost)} gold`}
+                      </small>
+                    </span>
+                    <span className="spell-tooltip" role="tooltip">
+                      <strong>{spell.name}</strong>
+                      <span>{spell.description}</span>
+                      <span>{charges ? `${charges} charge ready` : `Buy one charge for ${formatNumber(spell.cost)} gold`}</span>
+                      <b>Press {spell.hotkey}, then click the field</b>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             <div
               ref={hotkeyRef}
               className="hotkey-strip"
               aria-label="Keyboard shortcuts"
             >
               <span><kbd>1–4</kbd> Build</span>
+              <span><kbd>⇧1–4</kbd> Spells</span>
               <span><kbd>S</kbd> Sell</span>
               <span><kbd>M</kbd> Move</span>
               <span><kbd>Space</kbd> Rush</span>
@@ -1834,9 +2231,18 @@ export default function NatureDefenseGame() {
                   twisting route.
                 </p>
               </div>
+              <div>
+                <h3>Buy wild magic</h3>
+                <p>
+                  Press Shift+1–4 to buy and arm a one-use spell, then click the
+                  field to cast it. Each purchase grants one charge; casting
+                  consumes it. Solar Flare shows separate damage and stun rings.
+                </p>
+              </div>
             </div>
             <div className="help-hotkeys">
               <span><kbd>1–4</kbd> Choose guardian</span>
+              <span><kbd>Shift+1–4</kbd> Buy/arm spell</span>
               <span><kbd>S</kbd> Sell selected</span>
               <span><kbd>M</kbd> Move selected</span>
               <span><kbd>Space</kbd> Call wave</span>

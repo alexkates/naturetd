@@ -513,7 +513,7 @@ export default function NatureDefenseGame() {
         TOWER_DATA[kind].image,
         TOWER_DATA[kind].guardian,
       ]),
-      "/assets/blight-sprites/blight-atlas-v3.png",
+      "/assets/blight-sprites/blight-atlas-v6.png",
       "/assets/endpoints/blight-rift.png",
       "/assets/endpoints/heartwood.png",
     ];
@@ -922,13 +922,13 @@ export default function NatureDefenseGame() {
 
     const sortedEnemies = [...game.enemies].sort((a, b) => a.y - b.y);
     for (const enemy of sortedEnemies) {
-      const atlas = imagesRef.current.get("/assets/blight-sprites/blight-atlas-v3.png");
+      const atlas = imagesRef.current.get("/assets/blight-sprites/blight-atlas-v6.png");
       const fallback = imagesRef.current.get(invaderImagePath(enemy.invader));
       const next = enemy.path[enemy.pathIndex + 1];
       const dx = next ? next.x + 0.5 - enemy.x : 1;
       const dy = next ? next.y + 0.5 - enemy.y : 0;
       const direction = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : 2) : (dy < 0 ? 3 : 0);
-      const frame = Math.abs(Math.floor(game.elapsed * enemy.speed * 3 + enemy.id)) % 3;
+      const frame = Math.abs(Math.floor(game.elapsed * 5 + enemy.id)) % 3;
       const spriteSize = enemy.invader === BOSS ? 40 : 34;
       const drawX = enemy.x * CELL - spriteSize / 2;
       const bob = Math.sin(game.elapsed * 7 + enemy.id) * 0.65;
@@ -941,7 +941,7 @@ export default function NatureDefenseGame() {
       }
       if (atlas?.complete) {
         const sourceWidth = atlas.naturalWidth / 18;
-        const sourceHeight = atlas.naturalHeight / 6;
+        const sourceHeight = atlas.naturalHeight / 4;
         context.drawImage(
           atlas,
           (enemy.invader.sprite * 3 + frame) * sourceWidth,

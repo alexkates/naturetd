@@ -233,24 +233,188 @@ canvas {
 
 .game-over {
   position: absolute;
-  inset: 38px 0 0;
+  z-index: 30;
+  inset: 0;
+  overflow: auto;
   display: grid;
-  place-content: center;
-  justify-items: center;
-  padding: 28px;
+  place-items: center;
+  padding: 18px;
   text-align: center;
-  background: rgba(9, 20, 13, 0.84);
-  backdrop-filter: blur(5px);
+  background:
+    radial-gradient(circle at 16% 16%, rgba(255, 221, 88, 0.48), transparent 27%),
+    radial-gradient(circle at 84% 78%, rgba(144, 232, 255, 0.38), transparent 31%),
+    radial-gradient(circle at 76% 14%, rgba(223, 130, 246, 0.38), transparent 24%),
+    rgba(31, 17, 39, 0.88);
+  backdrop-filter: blur(7px) saturate(1.35);
 }
 
-.game-over h2 {
-  margin-bottom: 8px;
-  font-size: clamp(38px, 6vw, 68px);
+.game-over-card {
+  position: relative;
+  overflow: hidden;
+  width: min(760px, 100%);
+  padding: 20px;
+  border: 2px solid rgba(255, 238, 157, 0.86);
+  border-radius: 22px;
+  color: #4a3259;
+  background:
+    radial-gradient(circle at top, rgba(255, 237, 126, 0.55), transparent 46%),
+    linear-gradient(145deg, #fff9e9, #f1e5fa 58%, #dff6e2);
+  box-shadow:
+    0 28px 80px rgba(13, 7, 18, 0.58),
+    inset 0 0 0 4px rgba(255, 255, 255, 0.48);
+  animation: last-stand-arrival 0.55s cubic-bezier(0.2, 0.9, 0.24, 1.15) both;
 }
 
-.game-over > p:not(.eyebrow) {
-  margin-bottom: 22px;
-  color: var(--muted);
+.game-over-card > .eyebrow {
+  margin-bottom: 3px;
+  color: #9a651b;
+}
+
+.game-over-card h2 {
+  margin: 0;
+  color: #5e3a71;
+  font-size: clamp(38px, 6vw, 66px);
+  line-height: 0.9;
+  text-shadow: 0 3px #fff3a6;
+}
+
+.game-over-lede {
+  margin: 8px 0 13px;
+  color: #725f7c;
+  font-size: 11px;
+}
+
+.game-over-sparks span {
+  position: absolute;
+  color: #da8b31;
+  font-size: 20px;
+  animation: grove-spark 2.2s ease-in-out infinite alternate;
+}
+
+.game-over-sparks span:nth-child(1) {
+  top: 14px;
+  left: 22px;
+}
+
+.game-over-sparks span:nth-child(2) {
+  top: 28px;
+  right: 28px;
+  color: #7e5b9a;
+  animation-delay: -0.7s;
+}
+
+.game-over-sparks span:nth-child(3) {
+  bottom: 74px;
+  left: 28px;
+  color: #65964d;
+  animation-delay: -1.2s;
+}
+
+.game-over-sparks span:nth-child(4) {
+  right: 32px;
+  bottom: 82px;
+  color: #4aa9b8;
+  animation-delay: -1.7s;
+}
+
+.run-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.run-stats > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid rgba(117, 81, 142, 0.23);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.run-stats > div.featured {
+  border-color: rgba(126, 91, 154, 0.45);
+  background: linear-gradient(135deg, rgba(255, 241, 151, 0.72), rgba(235, 217, 248, 0.74));
+}
+
+.run-stats span {
+  color: #82708b;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.run-stats strong {
+  color: #4d345b;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(16px, 2.3vw, 24px);
+}
+
+.rush-recap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 9px 0;
+  padding: 8px 12px;
+  border: 1px solid #d39b43;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #ffeda2, #f5dff8);
+  text-align: left;
+}
+
+.rush-recap.quiet {
+  border-color: #cbb8d5;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.rush-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff9dc;
+  background: #d68a26;
+  box-shadow: 0 3px 0 #9f5d17;
+  font-size: 21px;
+}
+
+.rush-recap strong {
+  color: #5d3e69;
+  font-size: 11px;
+}
+
+.rush-recap p {
+  margin: 2px 0 0;
+  color: #826c89;
+  font-size: 9px;
+}
+
+.game-over-card > .primary-action {
+  width: min(330px, 100%);
+  min-height: 42px;
+}
+
+@keyframes last-stand-arrival {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes grove-spark {
+  from {
+    transform: translateY(3px) rotate(-8deg) scale(0.85);
+  }
+  to {
+    transform: translateY(-4px) rotate(9deg) scale(1.12);
+  }
 }
 
 .message-row {
@@ -1704,5 +1868,21 @@ body {
   .help-grid,
   .help-hotkeys {
     grid-template-columns: 1fr;
+  }
+
+  .game-over {
+    padding: 9px;
+  }
+
+  .game-over-card {
+    padding: 14px;
+  }
+
+  .run-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .game-over-lede {
+    margin-bottom: 9px;
   }
 }

@@ -92,6 +92,13 @@ type Game = {
   speed: number;
   kills: number;
   damage: number;
+  realElapsed: number;
+  goldEarned: number;
+  goldSpent: number;
+  rushGold: number;
+  timeSaved: number;
+  wavesRushed: number;
+  towersBuilt: number;
   bestWave: number;
   message: string;
   messageUntil: number;
@@ -185,6 +192,7 @@ const TOWER_DATA: Record<
 };
 
 const TOWER_ORDER = Object.keys(TOWER_DATA) as TowerKind[];
+const NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
 const INTRO_STORAGE_KEY = "nature-defense-intro-v1";
 const INTRO_STEPS = [
   {
@@ -219,6 +227,13 @@ const INTRO_STEPS = [
   },
 ] as const;
 const keyOf = (x: number, y: number) => `${x},${y}`;
+const formatNumber = (value: number) => NUMBER_FORMATTER.format(Math.round(value));
+
+function formatDuration(seconds: number) {
+  const rounded = Math.max(0, Math.round(seconds));
+  if (rounded < 60) return `${rounded}s`;
+  return `${Math.floor(rounded / 60)}m ${rounded % 60}s`;
+}
 
 function mulberry32(seed: number) {
   return function random() {
@@ -321,6 +336,13 @@ function createGame(seed = newSeed()): Game {
     speed: 1,
     kills: 0,
     damage: 0,
+    realElapsed: 0,
+    goldEarned: 0,
+    goldSpent: 0,
+    rushGold: 0,
+    timeSaved: 0,
+    wavesRushed: 0,
+    towersBuilt: 0,
     bestWave: 0,
     message: "Grow a guardian maze before the Blight arrives.",
     messageUntil: 5,
@@ -374,9 +396,11 @@ function queueNextWave(game: Game, earlyBonus = 0) {
   game.phase = "wave";
   game.paused = false;
   game.gold += earlyBonus;
+  game.rushGold += earlyBonus;
+  game.goldEarned += earlyBonus;
   game.message = earlyBonus
-    ? `Wave ${game.wave} called early — +${earlyBonus} gold!`
-    : `Wave ${game.wave}: ${wave.length} Blightlings spilled from the rift.`;
+    ? `Wave ${formatNumber(game.wave)} called early — +${formatNumber(earlyBonus)} gold!`
+    : `Wave ${formatNumber(game.wave)}: ${formatNumber(wave.length)} Blightlings spilled from the rift.`;
   game.messageUntil = game.elapsed + 4;
   game.waveAnnouncement = {
     wave: game.wave,
@@ -508,6 +532,7 @@ export default function NatureDefenseGame() {
         tower.kills += 1;
         game.kills += 1;
         game.gold += enemy.bounty;
+        game.goldEarned += enemy.bounty;
       }
     },
     [],
@@ -637,7 +662,9 @@ export default function NatureDefenseGame() {
     (rawDelta: number) => {
       const game = gameRef.current;
       if (game.paused || game.phase === "gameover") return;
-      const delta = Math.min(rawDelta, 0.05) * game.speed;
+      const frameDelta = Math.min(rawDelta, 0.05);
+      game.realElapsed += frameDelta;
+      const delta = frameDelta * game.speed;
       game.elapsed += delta;
       game.nextWaveIn -= delta;
       if (game.nextWaveIn <= 0) {
@@ -712,8 +739,9 @@ export default function NatureDefenseGame() {
       ) {
         const clearBonus = 20 + game.wave * 2;
         game.gold += clearBonus;
+        game.goldEarned += clearBonus;
         game.phase = "intermission";
-        game.message = `Grove clear — +${clearBonus} gold. Build before the next Blight.`;
+        game.message = `Grove clear — +${formatNumber(clearBonus)} gold. Build before the next Blight.`;
         game.messageUntil = game.elapsed + 4;
       }
     },
@@ -1050,6 +1078,8 @@ export default function NatureDefenseGame() {
       game.route = route;
       rerouteEnemies(game);
       game.gold -= data.cost;
+      game.goldSpent += data.cost;
+      game.towersBuilt += 1;
       game.message = `${data.name} planted.`;
       game.messageUntil = game.elapsed + 1.7;
       refresh();
@@ -1086,6 +1116,8 @@ export default function NatureDefenseGame() {
     const game = gameRef.current;
     if (game.phase === "gameover") return;
     const bonus = Math.max(1, Math.ceil(game.nextWaveIn));
+    game.timeSaved += Math.max(0, game.nextWaveIn);
+    game.wavesRushed += 1;
     queueNextWave(game, bonus);
     syncBest(game.wave);
     setSelectedCell(null);
@@ -1104,7 +1136,7 @@ export default function NatureDefenseGame() {
     game.route = createPath(game.towers, game.rng, false) ?? [];
     rerouteEnemies(game);
     setSelectedCell(null);
-    notify(`${TOWER_DATA[tower.kind].name} sold for ${tower.spent} gold.`);
+    notify(`${TOWER_DATA[tower.kind].name} sold for ${formatNumber(tower.spent)} gold.`);
     refresh();
   }, [notify, refresh]);
 
@@ -1310,7 +1342,7 @@ export default function NatureDefenseGame() {
             <div className="resource-bar" aria-label="Current run statistics">
               <div className="resource">
                 <span>Gold</span>
-                <strong className="gold-value">{Math.floor(game.gold)}</strong>
+                <strong className="gold-value">{formatNumber(game.gold)}</strong>
               </div>
               <div className="resource">
                 <span>Heartwood</span>
@@ -1320,15 +1352,15 @@ export default function NatureDefenseGame() {
               </div>
               <div className="resource">
                 <span>Wave</span>
-                <strong>{game.wave}</strong>
+                <strong>{formatNumber(game.wave)}</strong>
               </div>
               <div className="resource desktop-stat">
                 <span>Cleared</span>
-                <strong>{game.kills}</strong>
+                <strong>{formatNumber(game.kills)}</strong>
               </div>
               <div className="resource desktop-stat">
                 <span>Cleansing</span>
-                <strong>{Math.round(game.damage)}</strong>
+                <strong>{formatNumber(game.damage)}</strong>
               </div>
             </div>
 
@@ -1347,7 +1379,7 @@ export default function NatureDefenseGame() {
                 onClick={startWave}
                 disabled={game.phase === "gameover"}
               >
-                Wave {game.wave + 1} · +{rushBonus} <kbd>Space</kbd>
+                Wave {formatNumber(game.wave + 1)} · +{formatNumber(rushBonus)} <kbd>Space</kbd>
               </button>
               <div className="speed-controls">
                 <button
@@ -1396,11 +1428,11 @@ export default function NatureDefenseGame() {
                 ? `Moving ${TOWER_DATA[selectedKind].name} — click open grass or press Esc to cancel.`
                 : game.messageUntil > game.elapsed
                 ? game.message
-                : `${game.enemies.length + game.waveQueue.length} Blightlings active · next wave in ${Math.ceil(game.nextWaveIn)}s`}
+                : `${formatNumber(game.enemies.length + game.waveQueue.length)} Blightlings active · next wave in ${Math.ceil(game.nextWaveIn)}s`}
             </div>
 
             <div className="wave-peek" aria-label={`Upcoming wave ${game.wave + 1}`}>
-              <span>Next · {8 + (game.wave + 1) * 2}</span>
+              <span>Next · {formatNumber(8 + (game.wave + 1) * 2)}</span>
               <div>
                 {nextInvaders.map((invader) => (
                   <img
@@ -1436,17 +1468,17 @@ export default function NatureDefenseGame() {
                 >
                   <p>The rift stirs</p>
                   <h2>Wave {waveAnnouncement.wave}</h2>
-                  <strong>{waveAnnouncement.total} creatures incoming</strong>
+                  <strong>{formatNumber(waveAnnouncement.total)} creatures incoming</strong>
                   <div className="wave-roster">
                     {waveAnnouncement.roster.map(({ invader, count }) => (
                       <span key={invader.name}>
                         <img src={invaderImagePath(invader)} alt="" />
-                        <b>{count}×</b> {invader.name}
+                        <b>{formatNumber(count)}×</b> {invader.name}
                       </span>
                     ))}
                   </div>
                   {waveAnnouncement.earlyBonus > 0 ? (
-                    <small>Early call bonus +{waveAnnouncement.earlyBonus} gold</small>
+                    <small>Early call bonus +{formatNumber(waveAnnouncement.earlyBonus)} gold</small>
                   ) : null}
                 </div>
               ) : null}
@@ -1461,7 +1493,7 @@ export default function NatureDefenseGame() {
                 >
                   <strong>{TOWER_DATA[inspectedTower.kind].name}</strong>
                   <span>
-                    {inspectedTower.kills} cleared · {Math.round(inspectedTower.damageDone)} cleansing
+                    {formatNumber(inspectedTower.kills)} cleared · {formatNumber(inspectedTower.damageDone)} cleansing
                   </span>
                   <span>
                     {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).range.toFixed(1)} range
@@ -1474,7 +1506,7 @@ export default function NatureDefenseGame() {
                       onClick={sellSelected}
                       disabled={game.phase !== "intermission"}
                     >
-                      Sell +{inspectedTower.spent} <kbd>S</kbd>
+                      Sell +{formatNumber(inspectedTower.spent)} <kbd>S</kbd>
                     </button>
                   </div>
                 </div>
@@ -1482,14 +1514,64 @@ export default function NatureDefenseGame() {
 
               {game.phase === "gameover" && (
                 <div className="game-over">
-                  <p className="eyebrow">The Heartwood has wilted</p>
-                  <h2>Wave {game.wave}</h2>
-                  <p>
-                    {game.kills} Blightlings cleared · {Math.round(game.damage)} cleansing
-                  </p>
-                  <button className="primary-action" onClick={restart}>
-                    Start a new run
-                  </button>
+                  <div className="game-over-card">
+                    <div className="game-over-sparks" aria-hidden="true">
+                      <span>✦</span><span>◆</span><span>✿</span><span>✦</span>
+                    </div>
+                    <p className="eyebrow">The grove remembers your stand</p>
+                    <h2>Wave {formatNumber(game.wave)}</h2>
+                    <p className="game-over-lede">
+                      The Heartwood wilted, but your guardian maze left a legend behind.
+                    </p>
+
+                    <div className="run-stats" aria-label="Final run statistics">
+                      <div className="featured">
+                        <span>Blightlings cleansed</span>
+                        <strong>{formatNumber(game.kills)}</strong>
+                      </div>
+                      <div className="featured">
+                        <span>Cleansing damage</span>
+                        <strong>{formatNumber(game.damage)}</strong>
+                      </div>
+                      <div>
+                        <span>Gold earned</span>
+                        <strong>{formatNumber(game.goldEarned)}</strong>
+                      </div>
+                      <div>
+                        <span>Gold invested</span>
+                        <strong>{formatNumber(game.goldSpent)}</strong>
+                      </div>
+                      <div>
+                        <span>Guardians planted</span>
+                        <strong>{formatNumber(game.towersBuilt)}</strong>
+                      </div>
+                      <div>
+                        <span>Battle time</span>
+                        <strong>{formatDuration(game.realElapsed)}</strong>
+                      </div>
+                    </div>
+
+                    <div className={`rush-recap ${game.wavesRushed ? "" : "quiet"}`}>
+                      <span className="rush-icon" aria-hidden="true">↯</span>
+                      {game.wavesRushed ? (
+                        <div>
+                          <strong>{formatNumber(game.wavesRushed)} waves rushed</strong>
+                          <p>
+                            +{formatNumber(game.rushGold)} bonus gold · {formatDuration(game.timeSaved)} pulled forward
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <strong>No waves rushed</strong>
+                          <p>Call waves early next run to bend time and earn bonus gold.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <button className="primary-action" onClick={restart}>
+                      Grow another last stand
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

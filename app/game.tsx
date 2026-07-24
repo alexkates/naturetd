@@ -93,6 +93,8 @@ type Invader = {
 type WaveAnnouncement = {
   wave: number;
   total: number;
+  levelBonus: number;
+  bossWave: boolean;
   roster: { invader: Invader; count: number }[];
   earlyBonus: number;
   rushStreak: number;
@@ -127,6 +129,7 @@ type Game = {
   rushStreak: number;
   lastRushAt: number;
   towersBuilt: number;
+  towerUpgrades: number;
   bestWave: number;
   message: string;
   messageUntil: number;
@@ -151,9 +154,9 @@ const BOSS: Invader = {
   name: "The Grime King",
   file: "grime-king.png",
   sprite: 5,
-  hp: 10,
-  speed: 0.62,
-  bounty: 90,
+  hp: 18,
+  speed: 0.58,
+  bounty: 275,
   unlock: 5,
   cityDamage: 5,
 };
@@ -235,7 +238,7 @@ const SPELL_DATA: Record<SpellKind, {
 }> = {
   solar: {
     name: "Solar Flare",
-    cost: 425,
+    cost: 320,
     icon: "☀",
     color: "#ffd35a",
     description: "High damage · 2s blind + stun",
@@ -244,7 +247,7 @@ const SPELL_DATA: Record<SpellKind, {
   },
   ice: {
     name: "Ice Storm",
-    cost: 550,
+    cost: 415,
     icon: "❄",
     color: "#8ee8ff",
     description: "6 damage waves · heavy slow",
@@ -253,7 +256,7 @@ const SPELL_DATA: Record<SpellKind, {
   },
   tornado: {
     name: "Wild Tornadoes",
-    cost: 800,
+    cost: 600,
     icon: "◉",
     color: "#d8f5c0",
     description: "3 roam for 30s · reset hits",
@@ -262,7 +265,7 @@ const SPELL_DATA: Record<SpellKind, {
   },
   bloom: {
     name: "Heartwood Bloom",
-    cost: 1000,
+    cost: 750,
     icon: "✿",
     color: "#f3a6df",
     description: "Map pulse · execute · heal 3",
@@ -301,7 +304,7 @@ const INTRO_STEPS = [
     id: "actions",
     label: "Live controls",
     title: "Build while the Blight moves",
-    body: "A wave arrives every 30 seconds. Space calls it early for bonus gold. Select a guardian and press M to move it, or press S between waves to sell it for a full refund.",
+    body: "A wave arrives every 30 seconds. Space calls it early for bonus gold. Select a guardian and press U to upgrade or M to move it; press S between waves to sell it for a full refund.",
   },
 ] as const;
 const keyOf = (x: number, y: number) => `${x},${y}`;
@@ -423,6 +426,7 @@ function createGame(seed = newSeed()): Game {
     rushStreak: 0,
     lastRushAt: -Infinity,
     towersBuilt: 0,
+    towerUpgrades: 0,
     bestWave: 0,
     message: "Grow a guardian maze before the Blight arrives.",
     messageUntil: 5,
@@ -436,11 +440,22 @@ function createGame(seed = newSeed()): Game {
   };
 }
 
+const MAX_TOWER_LEVEL = 5;
+const UPGRADE_COST_MULTIPLIERS = [0, 2, 3, 5, 8];
+
+function upgradeCost(tower: Tower) {
+  if (tower.level >= MAX_TOWER_LEVEL) return null;
+  return Math.round(
+    TOWER_DATA[tower.kind].cost * UPGRADE_COST_MULTIPLIERS[tower.level],
+  );
+}
+
 function towerStats(tower: Tower) {
   const base = TOWER_DATA[tower.kind];
+  const steps = tower.level - 1;
   return {
-    damage: base.damage,
-    rate: base.rate,
+    damage: base.damage * (1 + steps * 0.75),
+    rate: base.rate * (1 + steps * 0.12),
     range: base.range,
   };
 }
@@ -451,6 +466,7 @@ function distance(a: Point, b: Point) {
 
 function makeWave(game: Game) {
   const wave = game.wave;
+  if (wave % 5 === 0) return [BOSS];
   const available = BLIGHTLINGS.filter((invader) => invader.unlock <= wave);
   const count = 8 + wave * 2;
   const queue: Invader[] = [];
@@ -459,7 +475,6 @@ function makeWave(game: Game) {
     const mixedIndex = (i + Math.floor(game.rng() * roster.length)) % roster.length;
     queue.push(roster[mixedIndex]);
   }
-  if (wave % 10 === 0) queue.splice(Math.floor(queue.length * 0.7), 0, BOSS);
   return queue;
 }
 
@@ -470,6 +485,8 @@ function queueNextWave(
   rushMultiplier = 1,
 ) {
   game.wave += 1;
+  const levelBonus = 35 + game.wave * 5;
+  const bossWave = game.wave % 5 === 0;
   const wave = makeWave(game);
   const counts = new Map<string, { invader: Invader; count: number }>();
   for (const invader of wave) {
@@ -483,16 +500,20 @@ function queueNextWave(
   game.nextWaveIn = game.wavePeriod;
   game.phase = "wave";
   game.paused = false;
-  game.gold += earlyBonus;
+  game.gold += earlyBonus + levelBonus;
   game.rushGold += earlyBonus;
-  game.goldEarned += earlyBonus;
-  game.message = earlyBonus
-    ? `Wave ${formatNumber(game.wave)} called early — +${formatNumber(earlyBonus)} gold!`
-    : `Wave ${formatNumber(game.wave)}: ${formatNumber(wave.length)} Blightlings spilled from the rift.`;
+  game.goldEarned += earlyBonus + levelBonus;
+  game.message = bossWave
+    ? `Boss wave ${formatNumber(game.wave)} — The Grime King carries a ${formatNumber(BOSS.bounty)} gold bounty!`
+    : earlyBonus
+      ? `Wave ${formatNumber(game.wave)} rushed — +${formatNumber(earlyBonus)} rush gold and +${formatNumber(levelBonus)} level gold!`
+      : `Wave ${formatNumber(game.wave)} — +${formatNumber(levelBonus)} level gold.`;
   game.messageUntil = game.elapsed + 4;
   game.waveAnnouncement = {
     wave: game.wave,
     total: wave.length,
+    levelBonus,
+    bossWave,
     roster: [...counts.values()],
     earlyBonus,
     rushStreak,
@@ -517,10 +538,8 @@ function rerouteEnemies(game: Game) {
 
 function upcomingInvaders(wave: number) {
   const next = wave + 1;
-  const unlocked = BLIGHTLINGS.filter((invader) => invader.unlock <= next);
-  const preview = unlocked.slice(0, 5);
-  if (next % 10 === 0) preview.push(BOSS);
-  return preview;
+  if (next % 5 === 0) return [BOSS];
+  return BLIGHTLINGS.filter((invader) => invader.unlock <= next).slice(0, 5);
 }
 
 function invaderImagePath(invader: Invader) {
@@ -989,6 +1008,12 @@ export default function NatureDefenseGame() {
       const guardian = imagesRef.current.get(TOWER_DATA[tower.kind].guardian);
       if (guardian?.complete) {
         context.drawImage(guardian, x * CELL + 17, y * CELL + 13, 22, 22);
+      }
+      context.fillStyle = TOWER_DATA[tower.kind].color;
+      for (let level = 0; level < tower.level; level += 1) {
+        context.beginPath();
+        context.arc(x * CELL + 6 + level * 7, y * CELL + 35, 2.2, 0, Math.PI * 2);
+        context.fill();
       }
     }
 
@@ -1564,6 +1589,34 @@ export default function NatureDefenseGame() {
     refresh();
   }, [notify, refresh]);
 
+  const upgradeSelected = useCallback(() => {
+    const game = gameRef.current;
+    const cell = selectedCellRef.current;
+    if (!cell) {
+      notify("Select a guardian to upgrade first.");
+      return;
+    }
+    const tower = game.towers.get(keyOf(cell.x, cell.y));
+    if (!tower) return;
+    const cost = upgradeCost(tower);
+    if (cost === null) {
+      notify(`${TOWER_DATA[tower.kind].name} is already level ${MAX_TOWER_LEVEL}.`);
+      return;
+    }
+    if (game.gold < cost) {
+      notify(`Need ${formatNumber(cost - game.gold)} more gold to upgrade.`);
+      return;
+    }
+    game.gold -= cost;
+    game.goldSpent += cost;
+    tower.spent += cost;
+    tower.level += 1;
+    game.towerUpgrades += 1;
+    game.message = `${TOWER_DATA[tower.kind].name} reached level ${tower.level}!`;
+    game.messageUntil = game.elapsed + 3;
+    refresh();
+  }, [notify, refresh]);
+
   const moveSelected = useCallback(() => {
     const game = gameRef.current;
     const cell = selectedCellRef.current;
@@ -1754,6 +1807,8 @@ export default function NatureDefenseGame() {
         startWave();
       } else if (event.key.toLowerCase() === "p") {
         togglePause();
+      } else if (event.key.toLowerCase() === "u") {
+        upgradeSelected();
       } else if (event.key.toLowerCase() === "s") {
         sellSelected();
       } else if (event.key.toLowerCase() === "m") {
@@ -1778,12 +1833,13 @@ export default function NatureDefenseGame() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelMove, cancelSpell, closeHelp, closeIntro, helpOpen, introOpen, moveSelected, nextIntroStep, openHelp, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause]);
+  }, [cancelMove, cancelSpell, closeHelp, closeIntro, helpOpen, introOpen, moveSelected, nextIntroStep, openHelp, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
     ? game.towers.get(keyOf(selectedCell.x, selectedCell.y))
     : undefined;
+  const inspectedUpgradeCost = inspectedTower ? upgradeCost(inspectedTower) : null;
   const nextInvaders = useMemo(() => upcomingInvaders(game.wave), [game.wave]);
   const rushWindow = Math.max(0, 4 - (game.realElapsed - game.lastRushAt));
   const nextRushStreak = rushWindow > 0 ? game.rushStreak + 1 : 1;
@@ -1921,7 +1977,9 @@ export default function NatureDefenseGame() {
             </div>
 
             <div className="wave-peek" aria-label={`Upcoming wave ${game.wave + 1}`}>
-              <span>Next · {formatNumber(8 + (game.wave + 1) * 2)}</span>
+              <span>
+                Next · {formatNumber((game.wave + 1) % 5 === 0 ? 1 : 8 + (game.wave + 1) * 2)}
+              </span>
               <div>
                 {nextInvaders.map((invader) => (
                   <img
@@ -1957,19 +2015,25 @@ export default function NatureDefenseGame() {
               {waveAnnouncement ? (
                 <div
                   key={waveAnnouncement.wave}
-                  className={`wave-announcement ${waveAnnouncement.earlyBonus ? "rush-chain" : ""}`}
+                  className={`wave-announcement ${waveAnnouncement.earlyBonus ? "rush-chain" : ""} ${waveAnnouncement.bossWave ? "boss-wave" : ""}`}
                   role="status"
                   aria-live="assertive"
                 >
                   <p>
-                    {waveAnnouncement.rushStreak > 1
-                      ? `Rush chain ×${waveAnnouncement.rushStreak}`
-                      : waveAnnouncement.earlyBonus
-                        ? "Wave rushed"
-                        : "The rift stirs"}
+                    {waveAnnouncement.bossWave
+                      ? "Boss wave"
+                      : waveAnnouncement.rushStreak > 1
+                        ? `Rush chain ×${waveAnnouncement.rushStreak}`
+                        : waveAnnouncement.earlyBonus
+                          ? "Wave rushed"
+                          : "The rift stirs"}
                   </p>
                   <h2>Wave {waveAnnouncement.wave}</h2>
-                  <strong>{formatNumber(waveAnnouncement.total)} creatures incoming</strong>
+                  <strong>
+                    {waveAnnouncement.bossWave
+                      ? `The Grime King stands alone · ${formatNumber(BOSS.bounty)}+ gold bounty`
+                      : `${formatNumber(waveAnnouncement.total)} creatures incoming`}
+                  </strong>
                   <div className="wave-roster">
                     {waveAnnouncement.roster.map(({ invader, count }) => (
                       <span key={invader.name}>
@@ -1978,11 +2042,12 @@ export default function NatureDefenseGame() {
                       </span>
                     ))}
                   </div>
-                  {waveAnnouncement.earlyBonus > 0 ? (
-                    <small>
-                      +{formatNumber(waveAnnouncement.earlyBonus)} gold · {waveAnnouncement.rushMultiplier.toFixed(2)}× rush multiplier
-                    </small>
-                  ) : null}
+                  <small>
+                    +{formatNumber(waveAnnouncement.levelBonus)} level gold
+                    {waveAnnouncement.earlyBonus > 0
+                      ? ` · +${formatNumber(waveAnnouncement.earlyBonus)} rush gold · ${waveAnnouncement.rushMultiplier.toFixed(2)}×`
+                      : ""}
+                  </small>
                 </div>
               ) : null}
 
@@ -2017,13 +2082,23 @@ export default function NatureDefenseGame() {
                   }}
                 >
                   <strong>{TOWER_DATA[inspectedTower.kind].name}</strong>
+                  <span className="tower-level">Level {inspectedTower.level}/{MAX_TOWER_LEVEL}</span>
                   <span>
                     {formatNumber(inspectedTower.kills)} cleared · {formatNumber(inspectedTower.damageDone)} cleansing
                   </span>
                   <span>
-                    {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).range.toFixed(1)} range
+                    {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).rate.toFixed(1)}/s · {towerStats(inspectedTower).range.toFixed(1)} range
                   </span>
                   <div className="tower-actions">
+                    <button
+                      className="upgrade-action"
+                      onClick={upgradeSelected}
+                      disabled={inspectedUpgradeCost === null}
+                    >
+                      {inspectedUpgradeCost === null
+                        ? "Maximum level"
+                        : `Upgrade · ${formatNumber(inspectedUpgradeCost)} gold`} <kbd>U</kbd>
+                    </button>
                     <button onClick={moveSelected}>
                       Move <kbd>M</kbd>
                     </button>
@@ -2069,6 +2144,10 @@ export default function NatureDefenseGame() {
                       <div>
                         <span>Guardians planted</span>
                         <strong>{formatNumber(game.towersBuilt)}</strong>
+                      </div>
+                      <div>
+                        <span>Guardian upgrades</span>
+                        <strong>{formatNumber(game.towerUpgrades)}</strong>
                       </div>
                       <div>
                         <span>Battle time</span>
@@ -2191,6 +2270,7 @@ export default function NatureDefenseGame() {
             >
               <span><kbd>1–4</kbd> Build</span>
               <span><kbd>⇧1–4</kbd> Spells</span>
+              <span><kbd>U</kbd> Upgrade</span>
               <span><kbd>S</kbd> Sell</span>
               <span><kbd>M</kbd> Move</span>
               <span><kbd>Space</kbd> Rush</span>
@@ -2232,26 +2312,26 @@ export default function NatureDefenseGame() {
               <div>
                 <h3>Beat the clock</h3>
                 <p>
-                  A mixed wave arrives every 30 seconds. Press Space to call it
-                  early and earn the displayed gold bonus. Rush again within
-                  four seconds to add 25% to the multiplier, up to 2.5× gold.
-                  Blightlings always find a shortest open route.
+                  A mixed wave arrives every 30 seconds and every new wave grants
+                  level gold. Press Space to call it early for bonus gold; rush
+                  again within four seconds to build the multiplier. Every fifth
+                  wave is one powerful Grime King carrying a large bounty.
                 </p>
               </div>
               <div>
                 <h3>Build under pressure</h3>
                 <p>
-                  You can plant or move guardians during any wave. Select one
-                  and press M, then click its new patch. Between waves, press S
-                  to sell it for a 100% refund.
+                  You can plant, move, or upgrade guardians during any wave.
+                  Select one and press U to reach level 5, or press M and click
+                  its new patch. Between waves, press S for a 100% refund.
                 </p>
               </div>
               <div>
                 <h3>Know the guardians</h3>
                 <p>
                   Chickadees fire quickly, foxes slow, boars cleanse groups,
-                  and wolves chain spirit sparks. Mix them along a long,
-                  twisting route.
+                  and wolves chain spirit sparks. Levels increase damage and
+                  attack speed while strengthening each guardian's specialty.
                 </p>
               </div>
               <div>
@@ -2266,6 +2346,7 @@ export default function NatureDefenseGame() {
             <div className="help-hotkeys">
               <span><kbd>1–4</kbd> Choose guardian</span>
               <span><kbd>Shift+1–4</kbd> Buy/arm spell</span>
+              <span><kbd>U</kbd> Upgrade selected</span>
               <span><kbd>S</kbd> Sell selected</span>
               <span><kbd>M</kbd> Move selected</span>
               <span><kbd>Space</kbd> Call wave</span>

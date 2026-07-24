@@ -93,17 +93,17 @@ type Game = {
 };
 
 const BLIGHTLINGS: Invader[] = [
-  { name: "Muckling", file: "muckling.png", hp: 1, speed: 1, bounty: 4, unlock: 1 },
-  { name: "Cinderling", file: "cinderling.png", hp: 0.72, speed: 1.48, bounty: 5, unlock: 1 },
-  { name: "Scrapbug", file: "scrapbug.png", hp: 2.25, speed: 0.7, bounty: 8, unlock: 1 },
-  { name: "Sporefiend", file: "sporefiend.png", hp: 1.45, speed: 0.92, bounty: 7, unlock: 2 },
-  { name: "Smogbat", file: "smogbat.png", hp: 0.9, speed: 1.75, bounty: 7, unlock: 3, cityDamage: 2 },
+  { name: "Muckling", file: "muckling.png", hp: 0.7, speed: 1, bounty: 4, unlock: 1 },
+  { name: "Cinderling", file: "cinderling.png", hp: 0.52, speed: 1.42, bounty: 5, unlock: 1 },
+  { name: "Scrapbug", file: "scrapbug.png", hp: 1.15, speed: 0.7, bounty: 8, unlock: 1 },
+  { name: "Sporefiend", file: "sporefiend.png", hp: 0.95, speed: 0.92, bounty: 7, unlock: 2 },
+  { name: "Smogbat", file: "smogbat.png", hp: 0.7, speed: 1.62, bounty: 7, unlock: 4, cityDamage: 2 },
 ];
 
 const BOSS: Invader = {
   name: "The Grime King",
   file: "grime-king.png",
-  hp: 15,
+  hp: 10,
   speed: 0.62,
   bounty: 90,
   unlock: 5,
@@ -262,7 +262,7 @@ function createGame(seed = newSeed()): Game {
   const rng = mulberry32(seed);
   const towers = new Map<string, Tower>();
   return {
-    gold: 260,
+    gold: 500,
     health: 20,
     wave: 0,
     phase: "intermission",
@@ -304,14 +304,14 @@ function distance(a: Point, b: Point) {
 function makeWave(game: Game) {
   const wave = game.wave;
   const available = BLIGHTLINGS.filter((invader) => invader.unlock <= wave);
-  const count = 11 + wave * 3;
+  const count = 8 + wave * 2;
   const queue: Invader[] = [];
   const roster = [...available].sort(() => game.rng() - 0.5);
   for (let i = 0; i < count; i += 1) {
     const mixedIndex = (i + Math.floor(game.rng() * roster.length)) % roster.length;
     queue.push(roster[mixedIndex]);
   }
-  if (wave % 5 === 0) queue.splice(Math.floor(queue.length * 0.65), 0, BOSS);
+  if (wave % 10 === 0) queue.splice(Math.floor(queue.length * 0.7), 0, BOSS);
   return queue;
 }
 
@@ -349,7 +349,7 @@ function upcomingInvaders(wave: number) {
   const next = wave + 1;
   const unlocked = BLIGHTLINGS.filter((invader) => invader.unlock <= next);
   const preview = unlocked.slice(0, 5);
-  if (next % 5 === 0) preview.push(BOSS);
+  if (next % 10 === 0) preview.push(BOSS);
   return preview;
 }
 
@@ -395,6 +395,8 @@ export default function NatureDefenseGame() {
         TOWER_DATA[kind].image,
         TOWER_DATA[kind].guardian,
       ]),
+      "/assets/endpoints/blight-rift.png",
+      "/assets/endpoints/heartwood.png",
     ];
     for (const source of allImages) {
       const image = new Image();
@@ -544,8 +546,8 @@ export default function NatureDefenseGame() {
   const spawnEnemy = useCallback((game: Game, invader: Invader) => {
     const path = createPath(game.towers, game.rng, true);
     if (!path) return;
-    const waveScale = Math.pow(1.2, game.wave - 1);
-    const maxHp = 86 * waveScale * invader.hp;
+    const waveScale = Math.pow(1.16, game.wave - 1);
+    const maxHp = 55 * waveScale * invader.hp;
     game.enemies.push({
       id: Math.floor(game.rng() * 0x7fffffff),
       invader,
@@ -555,8 +557,8 @@ export default function NatureDefenseGame() {
       y: path[0].y + 0.5,
       hp: maxHp,
       maxHp,
-      speed: (1.82 + Math.min(game.wave, 40) * 0.018) * invader.speed,
-      bounty: Math.max(1, Math.round(invader.bounty * (1 + game.wave * 0.018))),
+      speed: (1.76 + Math.min(game.wave, 40) * 0.013) * invader.speed,
+      bounty: Math.max(1, Math.round(invader.bounty * (1 + game.wave * 0.025))),
       cityDamage: invader.cityDamage ?? 1,
       slowUntil: 0,
       slowFactor: 1,
@@ -641,8 +643,10 @@ export default function NatureDefenseGame() {
         game.waveQueue.length === 0 &&
         game.enemies.length === 0
       ) {
+        const clearBonus = 20 + game.wave * 2;
+        game.gold += clearBonus;
         game.phase = "intermission";
-        game.message = "The grove is clear. Build and uproot before the next Blight.";
+        game.message = `Grove clear — +${clearBonus} gold. Build before the next Blight.`;
         game.messageUntil = game.elapsed + 4;
       }
     },
@@ -688,29 +692,17 @@ export default function NatureDefenseGame() {
     }
 
     const entryY = START.y * CELL;
-    context.fillStyle = "#593b75";
-    context.fillRect(0, entryY + 5, 24, 30);
-    context.fillStyle = "#9c68c6";
-    context.fillRect(6, entryY + 12, 18, 16);
-    context.fillStyle = "#f8cd62";
-    context.fillRect(17, entryY + 17, 7, 6);
+    const riftImage = imagesRef.current.get("/assets/endpoints/blight-rift.png");
+    if (riftImage?.complete) {
+      context.drawImage(riftImage, -8, entryY - 10, 62, 62);
+    }
 
     const cityX = CITY.x * CELL;
     const cityY = CITY.y * CELL;
-    context.fillStyle = "#715032";
-    context.fillRect(cityX + 16, cityY + 18, 12, 22);
-    context.fillStyle = "#b6e66a";
-    for (const [dx, dy, radius] of [
-      [9, 17, 11],
-      [21, 10, 14],
-      [33, 17, 11],
-    ] as const) {
-      context.beginPath();
-      context.arc(cityX + dx, cityY + dy, radius, 0, Math.PI * 2);
-      context.fill();
+    const heartwoodImage = imagesRef.current.get("/assets/endpoints/heartwood.png");
+    if (heartwoodImage?.complete) {
+      context.drawImage(heartwoodImage, cityX - 12, cityY - 12, 64, 64);
     }
-    context.fillStyle = "#fff29a";
-    context.fillRect(cityX + 19, cityY + 16, 6, 6);
 
     for (const [key, tower] of game.towers) {
       const [x, y] = key.split(",").map(Number);
@@ -1066,6 +1058,14 @@ export default function NatureDefenseGame() {
             <span>Best</span>
             <strong>{game.bestWave}</strong>
           </div>
+          <div className="resource desktop-stat">
+            <span>Cleared</span>
+            <strong>{game.kills}</strong>
+          </div>
+          <div className="resource desktop-stat">
+            <span>Cleansing</span>
+            <strong>{Math.round(game.damage)}</strong>
+          </div>
         </div>
       </header>
 
@@ -1232,7 +1232,7 @@ export default function NatureDefenseGame() {
                   <p className="eyebrow">Next mixed wave</p>
                   <h2>Wave {game.wave + 1}</h2>
                 </div>
-                <span>{11 + (game.wave + 1) * 3} total</span>
+                <span>{8 + (game.wave + 1) * 2} total</span>
               </div>
               <div className="animal-preview">
                 {nextInvaders.map((invader) => (
@@ -1260,8 +1260,7 @@ export default function NatureDefenseGame() {
             <span>Space</span>
           </button>
           <div className="run-metrics">
-            <span>{game.kills} cleared</span>
-            <span>{Math.round(game.damage)} cleansing</span>
+            <span>1–4 build · S uproot</span>
             <button onClick={restart}>New run · N</button>
           </div>
         </aside>

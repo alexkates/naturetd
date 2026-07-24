@@ -29,8 +29,9 @@ test("renders the playable Nature's Last Stand shell", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>Nature&#x27;s Last Stand<\/title>/i);
-  assert.match(html, /Endless maze defense/);
+  assert.match(html, /Whimsical endless maze defense/);
   assert.match(html, /Wild guardians/);
   assert.match(html, /Call wave 1 early/);
+  assert.match(html, /Cleansing/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });

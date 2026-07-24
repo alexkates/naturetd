@@ -22,13 +22,13 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title,
       description,
-      images: [{ url: `${origin}/og-v2.png`, width: 1672, height: 941 }],
+      images: [{ url: `${origin}/og.png`, width: 1672, height: 941 }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [`${origin}/og-v2.png`],
+      images: [`${origin}/og.png`],
     },
   };
 }

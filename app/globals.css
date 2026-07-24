@@ -1,3 +1,5 @@
+@import "./design-tokens.css";
+
 :root {
   --ink: #3f3150;
   --muted: #7c6e89;
@@ -23,8 +25,8 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    radial-gradient(circle at 15% 0%, #fff1a8 0, transparent 29rem),
-    radial-gradient(circle at 90% 10%, #e5ccff 0, transparent 32rem),
+    radial-gradient(circle at 15% 0%, #fff1a8 0, transparent 464px),
+    radial-gradient(circle at 90% 10%, #e5ccff 0, transparent 512px),
     linear-gradient(145deg, #cceeff 0%, #fff6df 100%);
   font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
 }
@@ -75,7 +77,7 @@ canvas:focus-visible {
   background: var(--acid);
   box-shadow: 0 8px 0 rgba(95, 63, 119, 0.15);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 14px;
+  font-size: var(--font-size-subtitle);
   font-weight: 700;
 }
 
@@ -86,13 +88,13 @@ p {
 }
 
 h1 {
-  font-size: clamp(21px, 2.4vw, 31px);
+  font-size: var(--font-size-heading-page);
   letter-spacing: -0.04em;
   line-height: 1.04;
 }
 
 h2 {
-  font-size: 18px;
+  font-size: var(--font-size-title);
   letter-spacing: -0.025em;
 }
 
@@ -100,7 +102,7 @@ h2 {
   margin-bottom: 4px;
   color: #8a6ba0;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--font-size-label);
   letter-spacing: 0.13em;
   text-transform: uppercase;
 }
@@ -134,7 +136,7 @@ h2 {
 .resource span {
   color: var(--muted);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   letter-spacing: 0.11em;
   text-transform: uppercase;
 }
@@ -142,7 +144,7 @@ h2 {
 .resource strong {
   margin-top: 2px;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 17px;
+  font-size: var(--font-size-title);
 }
 
 .gold-value {
@@ -189,7 +191,7 @@ h2 {
 .phase-pill,
 .seed {
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--font-size-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -273,7 +275,7 @@ canvas {
 .game-over-card h2 {
   margin: 0;
   color: #5e3a71;
-  font-size: clamp(38px, 6vw, 66px);
+  font-size: var(--font-size-display);
   line-height: 0.9;
   text-shadow: 0 3px #fff3a6;
 }
@@ -281,13 +283,13 @@ canvas {
 .game-over-lede {
   margin: 8px 0 13px;
   color: #725f7c;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .game-over-sparks span {
   position: absolute;
   color: #da8b31;
-  font-size: 20px;
+  font-size: var(--font-size-title-lg);
   animation: grove-spark 2.2s ease-in-out infinite alternate;
 }
 
@@ -340,7 +342,7 @@ canvas {
 .run-stats span {
   color: #82708b;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -348,7 +350,7 @@ canvas {
 .run-stats strong {
   color: #4d345b;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: clamp(16px, 2.3vw, 24px);
+  font-size: var(--font-size-heading-sm);
 }
 
 .rush-recap {
@@ -378,18 +380,18 @@ canvas {
   color: #fff9dc;
   background: #d68a26;
   box-shadow: 0 3px 0 #9f5d17;
-  font-size: 21px;
+  font-size: var(--font-size-title-lg);
 }
 
 .rush-recap strong {
   color: #5d3e69;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .rush-recap p {
   margin: 2px 0 0;
   color: #826c89;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
 }
 
 .game-over-card > .primary-action {
@@ -428,7 +430,7 @@ canvas {
   border-radius: 0 0 13px 13px;
   color: #62536f;
   background: #fffaf0;
-  font-size: 12px;
+  font-size: var(--font-size-body);
 }
 
 .message-row > span:nth-child(2) {
@@ -452,7 +454,7 @@ canvas {
   color: #796a84;
   background: #f5ebfc;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 .speed-controls button:hover:not(:disabled),
@@ -520,7 +522,7 @@ canvas {
   border-radius: 7px;
   color: #806c8e;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   text-transform: uppercase;
 }
 
@@ -598,7 +600,7 @@ canvas {
 
 .tower-copy strong {
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--font-size-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -606,7 +608,7 @@ canvas {
 .tower-copy small {
   margin-top: 3px;
   color: #83748d;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   line-height: 1.25;
 }
 
@@ -616,7 +618,7 @@ canvas {
   gap: 5px;
   color: var(--gold);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 kbd {
@@ -628,7 +630,7 @@ kbd {
   border-radius: 4px;
   color: #806b8f;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
   box-shadow: inset 0 -1px #c6b3d4;
 }
 
@@ -664,7 +666,7 @@ kbd {
 
 .wave-preview > p {
   color: #7f7089;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
   line-height: 1.35;
 }
 
@@ -713,7 +715,7 @@ kbd {
 .inspector dt {
   color: #83728d;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -721,7 +723,7 @@ kbd {
 .inspector dd {
   margin: 2px 0 0;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .inspector-actions {
@@ -733,7 +735,7 @@ kbd {
 .inspector-actions button {
   min-height: 39px;
   border-radius: 9px;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
   font-weight: 700;
 }
 
@@ -761,7 +763,7 @@ kbd {
   box-shadow:
     0 7px 0 rgba(99, 66, 119, 0.25),
     inset 0 1px rgba(255, 255, 255, 0.35);
-  font-size: 13px;
+  font-size: var(--font-size-control);
   font-weight: 800;
 }
 
@@ -790,7 +792,7 @@ kbd {
   border: 1px solid rgba(22, 36, 24, 0.24);
   border-radius: 5px;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
   text-transform: uppercase;
 }
 
@@ -805,7 +807,7 @@ kbd {
   gap: 8px;
   color: #806e8a;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   padding: 0 4px;
 }
 
@@ -827,7 +829,7 @@ kbd {
   padding: 13px 3px 0;
   color: #675a70;
   font-family: "DM Mono", monospace;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   line-height: 1.6;
 }
 
@@ -885,7 +887,7 @@ kbd {
   }
 
   .resource strong {
-    font-size: 14px;
+    font-size: var(--font-size-subtitle);
   }
 
   .control-panel {
@@ -975,13 +977,13 @@ body {
 }
 
 .hud-topbar h1 {
-  font-size: clamp(18px, 1.7vw, 25px);
+  font-size: var(--font-size-heading-md);
   white-space: nowrap;
 }
 
 .hud-topbar .eyebrow {
   margin-bottom: 2px;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
 }
 
 .hud-topbar .resource-bar {
@@ -997,12 +999,12 @@ body {
 }
 
 .hud-topbar .resource span {
-  font-size: 8px;
+  font-size: var(--font-size-micro);
 }
 
 .hud-topbar .resource strong {
   margin-top: 0;
-  font-size: 15px;
+  font-size: var(--font-size-title-sm);
 }
 
 .hud-actions {
@@ -1020,7 +1022,7 @@ body {
   border-radius: 9px;
   color: #5c426c;
   background: #f4e9fb;
-  font-size: 10px;
+  font-size: var(--font-size-label);
   font-weight: 700;
 }
 
@@ -1041,7 +1043,7 @@ body {
 
 .rush-explainer {
   color: #725027;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   font-weight: 800;
   line-height: 1.1;
   white-space: nowrap;
@@ -1149,7 +1151,7 @@ body {
   padding: 7px 11px;
   border-radius: 999px;
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: var(--font-size-label);
   text-align: center;
 }
 
@@ -1167,7 +1169,7 @@ body {
   padding: 5px 7px 5px 9px;
   border-radius: 11px;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
   text-transform: uppercase;
 }
 
@@ -1239,7 +1241,7 @@ body {
 .wave-announcement p {
   color: #86619f;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -1247,13 +1249,13 @@ body {
 
 .wave-announcement h2 {
   color: #4b315a;
-  font-size: clamp(28px, 4.4vw, 44px);
+  font-size: var(--font-size-heading-lg);
   line-height: 0.95;
 }
 
 .wave-announcement > strong {
   color: #745c7f;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .wave-roster {
@@ -1272,7 +1274,7 @@ body {
   border: 1px solid #d4c2df;
   border-radius: 999px;
   background: #fffdf7;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   white-space: nowrap;
 }
 
@@ -1290,7 +1292,7 @@ body {
 
 .wave-announcement small {
   color: #a76b13;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   font-weight: 800;
 }
 
@@ -1328,13 +1330,13 @@ body {
 }
 
 .rush-chain-hud strong {
-  font-size: 12px;
+  font-size: var(--font-size-body);
   text-transform: uppercase;
 }
 
 .rush-chain-hud span {
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 @keyframes rush-celebration {
@@ -1376,7 +1378,7 @@ body {
   padding: 0 3px;
   color: #756181;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
   text-transform: uppercase;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
@@ -1451,7 +1453,7 @@ body {
 .dock-copy em {
   display: -webkit-box;
   color: #75677d;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
   font-style: normal;
   line-height: 1.25;
   -webkit-box-orient: vertical;
@@ -1465,17 +1467,17 @@ body {
 .dock-copy kbd {
   width: 15px;
   height: 15px;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
 }
 
 .guardian-dock strong {
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 .guardian-dock small {
   color: var(--gold);
-  font-size: 8px;
+  font-size: var(--font-size-micro);
 }
 
 .guardian-tooltip {
@@ -1514,12 +1516,12 @@ body {
 
 .guardian-tooltip > strong {
   color: #4f375d;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .guardian-tooltip > span {
   color: #776681;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   line-height: 1.35;
 }
 
@@ -1549,7 +1551,7 @@ body {
   border-radius: 12px;
   transform: translateX(-50%);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
   white-space: nowrap;
 }
 
@@ -1606,13 +1608,13 @@ body {
 }
 
 .tower-popover strong {
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .tower-popover > span {
   color: #776681;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: var(--font-size-micro);
 }
 
 .tower-popover button {
@@ -1626,7 +1628,7 @@ body {
   border-radius: 7px;
   color: #5b3c6c;
   background: #eee0f6;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   font-weight: 700;
 }
 
@@ -1675,7 +1677,7 @@ body {
 
 .help-modal > h2 {
   margin-bottom: 20px;
-  font-size: clamp(24px, 4vw, 38px);
+  font-size: var(--font-size-heading-feature);
 }
 
 .help-close {
@@ -1688,7 +1690,7 @@ body {
   border-radius: 50%;
   color: #634b72;
   background: #f4e9fa;
-  font-size: 22px;
+  font-size: var(--font-size-title-lg);
 }
 
 .help-grid {
@@ -1706,12 +1708,12 @@ body {
 
 .help-grid h3 {
   margin: 0 0 5px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .help-grid p {
   color: #71627a;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
   line-height: 1.5;
 }
 
@@ -1726,7 +1728,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
 }
 
 .help-hotkeys kbd {
@@ -1746,7 +1748,7 @@ body {
   border: 0;
   color: #725685;
   background: transparent;
-  font-size: 10px;
+  font-size: var(--font-size-label);
   font-weight: 700;
 }
 
@@ -1827,7 +1829,7 @@ body {
   border: 0;
   color: #725f7c;
   background: transparent;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   font-weight: 700;
 }
 
@@ -1856,14 +1858,14 @@ body {
 .intro-card h2 {
   max-width: 360px;
   margin: 0 0 10px;
-  font-size: clamp(25px, 3.3vw, 38px);
+  font-size: var(--font-size-heading-modal);
   line-height: 1.03;
 }
 
 .intro-copy {
   margin: 0;
   color: #6f6078;
-  font-size: 12px;
+  font-size: var(--font-size-body);
   line-height: 1.6;
 }
 
@@ -1881,7 +1883,7 @@ body {
   border-radius: 9px;
   color: #5c426c;
   background: #f4e9fb;
-  font-size: 10px;
+  font-size: var(--font-size-label);
   font-weight: 800;
 }
 
@@ -1892,7 +1894,7 @@ body {
 .intro-actions > span {
   color: #887590;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   text-align: center;
 }
 
@@ -1902,24 +1904,24 @@ body {
 }
 
 body {
-  font-size: 16px;
+  font-size: var(--font-size-title-sm);
 }
 
 .eyebrow,
 .hud-topbar .eyebrow {
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 .hud-topbar h1 {
-  font-size: clamp(20px, 1.8vw, 27px);
+  font-size: var(--font-size-heading-hud);
 }
 
 .hud-topbar .resource span {
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 .hud-topbar .resource strong {
-  font-size: 17px;
+  font-size: var(--font-size-title);
 }
 
 .hud-topbar .resource strong,
@@ -1931,25 +1933,25 @@ body {
 .rush-button,
 .help-button,
 .phase-pill {
-  font-size: 12px;
+  font-size: var(--font-size-body);
 }
 
 .game-message {
-  font-size: 12px;
+  font-size: var(--font-size-body);
 }
 
 .wave-peek,
 .dock-label,
 .hotkey-strip {
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .guardian-dock strong {
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .guardian-dock small {
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 .guardian-tooltip {
@@ -1957,12 +1959,12 @@ body {
 }
 
 .guardian-tooltip > strong {
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .guardian-tooltip > span,
 .tower-popover button {
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .tower-popover {
@@ -1970,57 +1972,57 @@ body {
 }
 
 .tower-popover strong {
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .tower-popover > span {
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 .wave-announcement p,
 .wave-announcement small,
 .wave-roster span {
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .wave-announcement > strong {
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .help-grid h3 {
-  font-size: 15px;
+  font-size: var(--font-size-title-sm);
 }
 
 .help-grid p {
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .help-hotkeys span,
 .replay-intro-button {
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .intro-skip,
 .intro-actions > span {
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
 }
 
 .intro-copy {
-  font-size: 14px;
+  font-size: var(--font-size-subtitle);
 }
 
 .intro-actions > button {
-  font-size: 12px;
+  font-size: var(--font-size-body);
 }
 
 .game-over-lede,
 .rush-recap strong {
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 
 .run-stats span,
 .rush-recap p {
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 .hud-topbar {
@@ -2100,9 +2102,9 @@ body {
 }
 
 .guardian-dock button {
-  width: 270px;
-  min-width: 270px;
-  height: 82px;
+  width: 280px;
+  min-width: 280px;
+  height: 92px;
   gap: 10px;
   padding: 9px 12px 9px 9px;
   border-radius: 13px;
@@ -2131,7 +2133,7 @@ body {
 .dock-copy em {
   display: block;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: var(--font-size-label);
   line-height: 1.3;
 }
 
@@ -2139,7 +2141,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: var(--font-size-label);
 }
 
 .hotkey-strip {
@@ -2328,7 +2330,7 @@ body {
   .rush-explainer {
     max-width: 190px;
     overflow: hidden;
-    font-size: 8px;
+    font-size: var(--font-size-micro);
     text-overflow: ellipsis;
   }
 
@@ -2361,15 +2363,15 @@ body {
   }
 
   .dock-copy strong {
-    font-size: 9px;
+    font-size: var(--font-size-fine);
   }
 
   .dock-copy em {
-    font-size: 7px;
+    font-size: var(--font-size-micro);
   }
 
   .dock-copy small {
-    font-size: 7px;
+    font-size: var(--font-size-micro);
   }
 
   .help-grid,
@@ -2428,7 +2430,7 @@ body {
 
   .rush-explainer {
     max-width: none;
-    font-size: 9px;
+    font-size: var(--font-size-fine);
     overflow: visible;
     text-overflow: clip;
   }
@@ -2478,13 +2480,13 @@ body {
   }
 
   .dock-copy strong {
-    font-size: 12px;
+    font-size: var(--font-size-body);
     line-height: 1.15;
   }
 
   .dock-copy em,
   .dock-copy small {
-    font-size: 9px;
+    font-size: var(--font-size-fine);
     line-height: 1.3;
   }
 
@@ -2529,7 +2531,7 @@ body {
   padding: 0 4px;
   color: #74587e;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--font-size-label);
   font-weight: 800;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -2541,9 +2543,9 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  width: 188px;
-  min-width: 188px;
-  height: 62px;
+  width: 198px;
+  min-width: 198px;
+  height: 72px;
   gap: 9px;
   padding: 8px 10px;
   overflow: visible;
@@ -2588,7 +2590,7 @@ body {
   color: #4e3857;
   background: color-mix(in srgb, var(--spell-color) 45%, white);
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .5);
-  font-size: 20px;
+  font-size: var(--font-size-title-lg);
   line-height: 1;
 }
 
@@ -2608,13 +2610,13 @@ body {
 
 .spell-copy strong {
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--font-size-body-sm);
   line-height: 1.1;
 }
 
 .spell-copy em {
   color: #78667f;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   font-style: normal;
 }
 
@@ -2623,7 +2625,7 @@ body {
   align-items: center;
   gap: 6px;
   color: #a5681b;
-  font-size: 9px;
+  font-size: var(--font-size-fine);
   font-weight: 800;
 }
 
@@ -2641,7 +2643,7 @@ body {
   background: rgba(255, 251, 244, .98);
   box-shadow: 0 12px 30px rgba(44, 28, 54, .25);
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: var(--font-size-label);
   pointer-events: none;
 }
 
@@ -2657,7 +2659,7 @@ body {
 
 .spell-tooltip strong {
   color: #523660;
-  font-size: 12px;
+  font-size: var(--font-size-body);
 }
 
 .spell-tooltip b {
@@ -2706,7 +2708,7 @@ body {
     width: 30px;
     height: 30px;
     flex-basis: 30px;
-    font-size: 16px;
+    font-size: var(--font-size-title-sm);
   }
 
   .hotkey-strip {
@@ -2740,12 +2742,12 @@ body {
   }
 
   .spell-copy strong {
-    font-size: 10px;
+    font-size: var(--font-size-label);
   }
 
   .spell-copy em,
   .spell-copy small {
-    font-size: 8px;
+    font-size: var(--font-size-micro);
   }
 }
 
@@ -2777,5 +2779,13 @@ body {
   .canvas-stage {
     width: min(calc(100% - 32px), 440px);
     margin: 12px auto;
+  }
+}
+
+
+@media (max-width: 2000px) {
+  .hotkey-strip > span:nth-child(6),
+  .hotkey-strip > span:nth-child(7) {
+    display: none;
   }
 }

@@ -2380,3 +2380,102 @@ body {
     margin-bottom: 9px;
   }
 }
+@media (max-width: 640px) {
+  .game-shell {
+    padding: 10px;
+  }
+
+  .board-frame {
+    height: auto;
+    min-height: 0;
+  }
+
+  .hud-topbar {
+    min-height: 0;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .desktop-stat,
+  .hud-actions .speed-controls,
+  .help-button span {
+    display: none;
+  }
+
+  .hud-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .rush-control {
+    margin-right: 0;
+    justify-items: center;
+  }
+
+  .rush-explainer {
+    max-width: none;
+    font-size: 9px;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .canvas-stage {
+    --board-top-gutter: 64px;
+    --board-bottom-gutter: 212px;
+    width: min(calc(100% - 32px), 440px);
+    margin: 12px auto;
+  }
+
+  .guardian-dock {
+    right: auto;
+    bottom: calc(var(--board-bottom-gutter) / 2);
+    left: 50%;
+    display: grid;
+    width: calc(100% - 24px);
+    max-width: 416px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 10px;
+    transform: translate(-50%, 50%);
+  }
+
+  .guardian-dock button {
+    width: 100%;
+    min-width: 0;
+    height: 82px;
+    flex: none;
+    gap: 10px;
+    padding: 9px 10px;
+  }
+
+  .dock-art,
+  .dock-art img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .dock-art img:last-child {
+    width: 24px;
+    height: 24px;
+  }
+
+  .dock-copy {
+    gap: 4px;
+  }
+
+  .dock-copy strong {
+    font-size: 12px;
+    line-height: 1.15;
+  }
+
+  .dock-copy em,
+  .dock-copy small {
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  .hotkey-strip {
+    display: none;
+  }
+}

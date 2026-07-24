@@ -18,6 +18,7 @@ const CITY = { x: 23, y: 7 };
 
 type Point = { x: number; y: number };
 type TowerKind = "thorn" | "frost" | "boulder" | "lightning";
+type TerrainKind = "hill" | "pond" | "grove" | "crag";
 type Phase = "intermission" | "wave" | "gameover";
 
 type Tower = {
@@ -59,6 +60,8 @@ type Projectile = {
 type Invader = {
   name: string;
   file: string;
+  sprite: number;
+  traversal?: "swim" | "fly";
   hp: number;
   speed: number;
   bounty: number;
@@ -78,6 +81,7 @@ type WaveAnnouncement = {
 
 type Game = {
   gold: number;
+  terrain: Map<string, TerrainKind>;
   health: number;
   wave: number;
   phase: Phase;
@@ -113,16 +117,18 @@ type Game = {
 };
 
 const BLIGHTLINGS: Invader[] = [
-  { name: "Muckling", file: "muckling.png", hp: 0.7, speed: 1, bounty: 4, unlock: 1 },
-  { name: "Cinderling", file: "cinderling.png", hp: 0.52, speed: 1.42, bounty: 5, unlock: 1 },
-  { name: "Scrapbug", file: "scrapbug.png", hp: 1.15, speed: 0.7, bounty: 8, unlock: 1 },
-  { name: "Sporefiend", file: "sporefiend.png", hp: 0.95, speed: 0.92, bounty: 7, unlock: 2 },
-  { name: "Smogbat", file: "smogbat.png", hp: 0.7, speed: 1.62, bounty: 7, unlock: 4, cityDamage: 2 },
+  { name: "Muckling", file: "muckling.png", sprite: 0, traversal: "swim", hp: 0.7, speed: 1, bounty: 4, unlock: 1 },
+  { name: "Cinderling", file: "cinderling.png", sprite: 1, hp: 0.52, speed: 1.42, bounty: 5, unlock: 1 },
+  { name: "Scrapbug", file: "scrapbug.png", sprite: 2, hp: 1.15, speed: 0.7, bounty: 8, unlock: 1 },
+  { name: "Sporefiend", file: "sporefiend.png", sprite: 3, traversal: "swim", hp: 0.95, speed: 0.92, bounty: 7, unlock: 2 },
+  { name: "Smogbat", file: "smogbat.png", sprite: 4, traversal: "fly", hp: 0.7, speed: 1.62, bounty: 7, unlock: 4, cityDamage: 2 },
 ];
 
 const BOSS: Invader = {
   name: "The Grime King",
   file: "grime-king.png",
+  sprite: 5,
+  traversal: "swim",
   hp: 10,
   speed: 0.62,
   bounty: 90,
@@ -209,7 +215,7 @@ const INTRO_STEPS = [
     id: "board",
     label: "The board",
     title: "Bend the shortest path",
-    body: "Guardians occupy grass tiles and force Blightlings to reroute in four directions. You may twist the route, but the game will reject any build that seals it completely.",
+    body: "Guardians occupy grass tiles and force Blightlings to reroute in four directions. Hills empower damage, groves extend range, ponds admit swimmers, and crags form natural walls. Every new run grows a different landscape.",
   },
   {
     id: "health",
@@ -231,6 +237,13 @@ const INTRO_STEPS = [
   },
 ] as const;
 const keyOf = (x: number, y: number) => `${x},${y}`;
+
+const TERRAIN_DATA: Record<TerrainKind, { name: string; effect: string }> = {
+  hill: { name: "Sunlit hill", effect: "+25% guardian damage" },
+  grove: { name: "Whispering grove", effect: "+0.5 guardian range" },
+  pond: { name: "Moonpond", effect: "Swimmers and fliers shortcut" },
+  crag: { name: "Old crag", effect: "Natural maze wall" },
+};
 const formatNumber = (value: number) => NUMBER_FORMATTER.format(Math.round(value));
 
 function formatDuration(seconds: number) {
@@ -252,7 +265,45 @@ function newSeed() {
   return Math.floor(Math.random() * 0x7fffffff);
 }
 
-function calculateDistances(towers: Map<string, Tower>) {
+function terrainBlocks(terrain: Map<string, TerrainKind>, point: Point, invader?: Invader) {
+  const kind = terrain.get(keyOf(point.x, point.y));
+  if (kind === "crag") return true;
+  if (kind === "pond") return invader?.traversal !== "swim" && invader?.traversal !== "fly";
+  return false;
+}
+
+function generateTerrain(random: () => number) {
+  const terrain = new Map<string, TerrainKind>();
+  const plan: [TerrainKind, number][] = [
+    ["hill", 7],
+    ["grove", 6],
+    ["pond", 7],
+    ["crag", 5],
+  ];
+  for (const [kind, count] of plan) {
+    let placed = 0;
+    let attempts = 0;
+    while (placed < count && attempts < 500) {
+      attempts += 1;
+      const point = {
+        x: 2 + Math.floor(random() * (COLS - 4)),
+        y: 1 + Math.floor(random() * (ROWS - 2)),
+      };
+      if ((kind === "pond" || kind === "crag") && (point.y === 6 || point.y === 7)) continue;
+      const key = keyOf(point.x, point.y);
+      if (terrain.has(key)) continue;
+      terrain.set(key, kind);
+      placed += 1;
+    }
+  }
+  return terrain;
+}
+
+function calculateDistances(
+  towers: Map<string, Tower>,
+  terrain: Map<string, TerrainKind>,
+  invader?: Invader,
+) {
   const distances = Array.from({ length: ROWS }, () =>
     Array<number>(COLS).fill(Infinity),
   );
@@ -273,6 +324,7 @@ function calculateDistances(towers: Map<string, Tower>) {
         next.x >= COLS ||
         next.y >= ROWS ||
         towers.has(keyOf(next.x, next.y)) ||
+        terrainBlocks(terrain, next, invader) ||
         distances[next.y][next.x] !== Infinity
       ) {
         continue;
@@ -286,11 +338,13 @@ function calculateDistances(towers: Map<string, Tower>) {
 
 function createPath(
   towers: Map<string, Tower>,
+  terrain: Map<string, TerrainKind>,
   random: () => number,
   randomize = true,
   origin = START,
+  invader?: Invader,
 ) {
-  const distances = calculateDistances(towers);
+  const distances = calculateDistances(towers, terrain, invader);
   if (!Number.isFinite(distances[origin.y][origin.x])) return null;
   const path = [origin];
   let current = origin;
@@ -322,8 +376,10 @@ function createPath(
 function createGame(seed = newSeed()): Game {
   const rng = mulberry32(seed);
   const towers = new Map<string, Tower>();
+  const terrain = generateTerrain(rng);
   return {
     gold: 500,
+    terrain,
     health: 20,
     wave: 0,
     phase: "intermission",
@@ -352,19 +408,19 @@ function createGame(seed = newSeed()): Game {
     bestWave: 0,
     message: "Grow a guardian maze before the Blight arrives.",
     messageUntil: 5,
-    route: createPath(towers, rng, false) ?? [],
+    route: createPath(towers, terrain, rng, false) ?? [],
     nextWaveIn: 30,
     wavePeriod: 30,
     waveAnnouncement: null,
   };
 }
 
-function towerStats(tower: Tower) {
+function towerStats(tower: Tower, terrain?: TerrainKind) {
   const base = TOWER_DATA[tower.kind];
   return {
-    damage: base.damage,
+    damage: base.damage * (terrain === "hill" ? 1.25 : 1),
     rate: base.rate,
-    range: base.range,
+    range: base.range + (terrain === "grove" ? 0.5 : 0),
   };
 }
 
@@ -430,7 +486,7 @@ function rerouteEnemies(game: Game) {
       x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x))),
       y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y))),
     };
-    const path = createPath(game.towers, game.rng, true, origin);
+    const path = createPath(game.towers, game.terrain, game.rng, true, origin, enemy.invader);
     if (path) {
       enemy.path = path;
       enemy.pathIndex = 0;
@@ -511,8 +567,9 @@ export default function NatureDefenseGame() {
         TOWER_DATA[kind].image,
         TOWER_DATA[kind].guardian,
       ]),
-      "/assets/endpoints/blight-rift.png",
-      "/assets/endpoints/heartwood.png",
+      "/assets/blight-sprites/blight-atlas-v2.png",
+      "/assets/endpoints-v2/blight-gate.png",
+      "/assets/endpoints-v2/heartwood-sanctuary.png",
     ];
     for (const source of allImages) {
       const image = new Image();
@@ -565,7 +622,7 @@ export default function NatureDefenseGame() {
 
   const fireTower = useCallback(
     (game: Game, gridPoint: Point, tower: Tower) => {
-      const stats = towerStats(tower);
+      const stats = towerStats(tower, game.terrain.get(keyOf(gridPoint.x, gridPoint.y)));
       const from = { x: gridPoint.x + 0.5, y: gridPoint.y + 0.5 };
       const candidates = game.enemies
         .filter(
@@ -661,7 +718,7 @@ export default function NatureDefenseGame() {
   );
 
   const spawnEnemy = useCallback((game: Game, invader: Invader) => {
-    const path = createPath(game.towers, game.rng, true);
+    const path = createPath(game.towers, game.terrain, game.rng, true, START, invader);
     if (!path) return;
     const waveScale = Math.pow(1.16, game.wave - 1);
     const maxHp = 55 * waveScale * invader.hp;
@@ -748,7 +805,7 @@ export default function NatureDefenseGame() {
         if (tower.cooldown > 0) continue;
         const [x, y] = key.split(",").map(Number);
         if (fireTower(game, { x, y }, tower)) {
-          tower.cooldown = 1 / towerStats(tower).rate;
+          tower.cooldown = 1 / towerStats(tower, game.terrain.get(key)).rate;
         }
       }
 
@@ -796,6 +853,69 @@ export default function NatureDefenseGame() {
       }
     }
 
+    for (const [key, kind] of game.terrain) {
+      const [x, y] = key.split(",").map(Number);
+      const left = x * CELL;
+      const top = y * CELL;
+      context.save();
+      if (kind === "hill") {
+        context.fillStyle = "#76984b";
+        context.beginPath();
+        context.ellipse(left + 20, top + 23, 17, 12, 0, 0, Math.PI * 2);
+        context.fill();
+        context.strokeStyle = "#b5cf69";
+        context.lineWidth = 2;
+        context.beginPath();
+        context.arc(left + 20, top + 22, 10, Math.PI * 1.1, Math.PI * 1.9);
+        context.stroke();
+        context.fillStyle = "#f7e98b";
+        context.font = "bold 7px sans-serif";
+        context.fillText("+25%", left + 11, top + 37);
+      } else if (kind === "pond") {
+        context.fillStyle = "#4c9fa8";
+        context.beginPath();
+        context.roundRect(left + 3, top + 5, 34, 30, 10);
+        context.fill();
+        context.strokeStyle = "#9dd9cb";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.ellipse(left + 18, top + 18, 9, 3, 0, 0, Math.PI * 2);
+        context.stroke();
+        context.fillStyle = "#d8ef71";
+        context.fillRect(left + 27, top + 10, 5, 3);
+      } else if (kind === "grove") {
+        context.fillStyle = "#573c2b";
+        context.fillRect(left + 18, top + 18, 5, 16);
+        context.fillStyle = "#244f37";
+        for (const [dx, dy, radius] of [[13, 16, 8], [23, 12, 10], [29, 20, 7]] as const) {
+          context.beginPath();
+          context.arc(left + dx, top + dy, radius, 0, Math.PI * 2);
+          context.fill();
+        }
+        context.fillStyle = "#d9ef71";
+        context.font = "bold 7px sans-serif";
+        context.fillText("+R", left + 28, top + 37);
+      } else {
+        context.fillStyle = "#6b6871";
+        context.beginPath();
+        context.moveTo(left + 4, top + 35);
+        context.lineTo(left + 16, top + 8);
+        context.lineTo(left + 24, top + 35);
+        context.closePath();
+        context.fill();
+        context.fillStyle = "#85828a";
+        context.beginPath();
+        context.moveTo(left + 16, top + 35);
+        context.lineTo(left + 29, top + 13);
+        context.lineTo(left + 37, top + 35);
+        context.closePath();
+        context.fill();
+        context.fillStyle = "#d5d1c7";
+        context.fillRect(left + 15, top + 12, 4, 5);
+      }
+      context.restore();
+    }
+
     context.strokeStyle = "rgba(23, 49, 27, .2)";
     context.lineWidth = 1;
     for (let x = 0; x <= COLS; x += 1) {
@@ -812,16 +932,24 @@ export default function NatureDefenseGame() {
     }
 
     const entryY = START.y * CELL;
-    const riftImage = imagesRef.current.get("/assets/endpoints/blight-rift.png");
+    const riftImage = imagesRef.current.get("/assets/endpoints-v2/blight-gate.png");
     if (riftImage?.complete) {
-      context.drawImage(riftImage, -8, entryY - 10, 62, 62);
+      context.save();
+      context.shadowColor = "rgba(170, 68, 214, .8)";
+      context.shadowBlur = 18;
+      context.drawImage(riftImage, -24, entryY - 31, 92, 106);
+      context.restore();
     }
 
     const cityX = CITY.x * CELL;
     const cityY = CITY.y * CELL;
-    const heartwoodImage = imagesRef.current.get("/assets/endpoints/heartwood.png");
+    const heartwoodImage = imagesRef.current.get("/assets/endpoints-v2/heartwood-sanctuary.png");
     if (heartwoodImage?.complete) {
-      context.drawImage(heartwoodImage, cityX - 12, cityY - 12, 64, 64);
+      context.save();
+      context.shadowColor = "rgba(255, 211, 91, .78)";
+      context.shadowBlur = 20;
+      context.drawImage(heartwoodImage, cityX - 29, cityY - 35, 98, 112);
+      context.restore();
     }
 
     for (const [key, tower] of game.towers) {
@@ -841,7 +969,8 @@ export default function NatureDefenseGame() {
       const occupied = game.towers.has(keyOf(hover.x, hover.y));
       const forbidden =
         (hover.x === START.x && hover.y === START.y) ||
-        (hover.x === CITY.x && hover.y === CITY.y);
+        (hover.x === CITY.x && hover.y === CITY.y) ||
+        terrainBlocks(game.terrain, hover);
       const affordable =
         movingCellRef.current !== null ||
         game.gold >= TOWER_DATA[selectedKindRef.current].cost;
@@ -859,7 +988,7 @@ export default function NatureDefenseGame() {
         context.arc(
           (hover.x + 0.5) * CELL,
           (hover.y + 0.5) * CELL,
-          selectedTower.range * CELL,
+          (selectedTower.range + (game.terrain.get(keyOf(hover.x, hover.y)) === "grove" ? 0.5 : 0)) * CELL,
           0,
           Math.PI * 2,
         );
@@ -894,7 +1023,7 @@ export default function NatureDefenseGame() {
     if (selected && game.towers.has(keyOf(selected.x, selected.y))) {
       const tower = game.towers.get(keyOf(selected.x, selected.y));
       if (tower) {
-        const stats = towerStats(tower);
+        const stats = towerStats(tower, game.terrain.get(keyOf(selected.x, selected.y)));
         context.strokeStyle = TOWER_DATA[tower.kind].color;
         context.setLineDash([6, 5]);
         context.lineWidth = 2;
@@ -919,17 +1048,40 @@ export default function NatureDefenseGame() {
 
     const sortedEnemies = [...game.enemies].sort((a, b) => a.y - b.y);
     for (const enemy of sortedEnemies) {
-      const image = imagesRef.current.get(invaderImagePath(enemy.invader));
-      const drawX = enemy.x * CELL - 14;
-      const bob = Math.sin(game.elapsed * 8 + enemy.id) * 1.2;
-      const drawY = enemy.y * CELL - 14 + bob;
+      const atlas = imagesRef.current.get("/assets/blight-sprites/blight-atlas-v2.png");
+      const fallback = imagesRef.current.get(invaderImagePath(enemy.invader));
+      const next = enemy.path[enemy.pathIndex + 1];
+      const dx = next ? next.x + 0.5 - enemy.x : 1;
+      const dy = next ? next.y + 0.5 - enemy.y : 0;
+      const direction = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : 2) : (dy < 0 ? 3 : 0);
+      const frame = Math.abs(Math.floor(game.elapsed * enemy.speed * 3 + enemy.id)) % 3;
+      const spriteSize = enemy.invader === BOSS ? 40 : 34;
+      const drawX = enemy.x * CELL - spriteSize / 2;
+      const bob = Math.sin(game.elapsed * 7 + enemy.id) * 0.65;
+      const drawY = enemy.y * CELL - spriteSize / 2 + bob;
       if (enemy.slowUntil > game.elapsed) {
         context.fillStyle = "rgba(120, 225, 255, .32)";
         context.beginPath();
         context.arc(enemy.x * CELL, enemy.y * CELL, 16, 0, Math.PI * 2);
         context.fill();
       }
-      if (image?.complete) context.drawImage(image, drawX, drawY, 28, 28);
+      if (atlas?.complete) {
+        const sourceWidth = atlas.naturalWidth / 18;
+        const sourceHeight = atlas.naturalHeight / 6;
+        context.drawImage(
+          atlas,
+          (enemy.invader.sprite * 3 + frame) * sourceWidth,
+          direction * sourceHeight,
+          sourceWidth,
+          sourceHeight,
+          drawX,
+          drawY,
+          spriteSize,
+          spriteSize,
+        );
+      } else if (fallback?.complete) {
+        context.drawImage(fallback, drawX, drawY, spriteSize, spriteSize);
+      }
       context.fillStyle = "#17251a";
       context.fillRect(enemy.x * CELL - 13, enemy.y * CELL - 20, 26, 4);
       context.fillStyle =
@@ -1022,6 +1174,10 @@ export default function NatureDefenseGame() {
           notify("The Blight rift and Heartwood must stay clear.");
           return;
         }
+        if (terrainBlocks(game.terrain, point)) {
+          notify("Ponds and crags cannot hold guardians.");
+          return;
+        }
         if (
           game.enemies.some(
             (enemy) =>
@@ -1040,7 +1196,7 @@ export default function NatureDefenseGame() {
         }
         game.towers.delete(sourceKey);
         game.towers.set(key, tower);
-        const route = createPath(game.towers, game.rng, false);
+        const route = createPath(game.towers, game.terrain, game.rng, false);
         if (!route) {
           game.towers.delete(key);
           game.towers.set(sourceKey, tower);
@@ -1071,6 +1227,10 @@ export default function NatureDefenseGame() {
         notify("The Blight rift and Heartwood must stay clear.");
         return;
       }
+      if (terrainBlocks(game.terrain, point)) {
+        notify("Ponds and crags cannot hold guardians.");
+        return;
+      }
       if (
         game.enemies.some(
           (enemy) =>
@@ -1094,7 +1254,7 @@ export default function NatureDefenseGame() {
         kills: 0,
       };
       game.towers.set(key, tower);
-      const route = createPath(game.towers, game.rng, false);
+      const route = createPath(game.towers, game.terrain, game.rng, false);
       if (!route) {
         game.towers.delete(key);
         notify("That blocks the last route to the Heartwood.");
@@ -1164,7 +1324,7 @@ export default function NatureDefenseGame() {
     if (!tower) return;
     game.gold += tower.spent;
     game.towers.delete(key);
-    game.route = createPath(game.towers, game.rng, false) ?? [];
+    game.route = createPath(game.towers, game.terrain, game.rng, false) ?? [];
     rerouteEnemies(game);
     setSelectedCell(null);
     notify(`${TOWER_DATA[tower.kind].name} sold for ${formatNumber(tower.spent)} gold.`);
@@ -1534,6 +1694,15 @@ export default function NatureDefenseGame() {
             </div>
 
             <div className="board-playfield" ref={boardRef}>
+              <div className="terrain-key" aria-label="Terrain effects">
+                {(Object.keys(TERRAIN_DATA) as TerrainKind[]).map((kind) => (
+                  <span key={kind} title={`${TERRAIN_DATA[kind].name}: ${TERRAIN_DATA[kind].effect}`}>
+                    <i className={kind} />
+                    <b>{TERRAIN_DATA[kind].name}</b>
+                    <small>{TERRAIN_DATA[kind].effect}</small>
+                  </span>
+                ))}
+              </div>
               <canvas
                 ref={canvasRef}
                 width={WIDTH}
@@ -1614,8 +1783,13 @@ export default function NatureDefenseGame() {
                     {formatNumber(inspectedTower.kills)} cleared · {formatNumber(inspectedTower.damageDone)} cleansing
                   </span>
                   <span>
-                    {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).range.toFixed(1)} range
+                    {Math.round(towerStats(inspectedTower, selectedCell ? game.terrain.get(keyOf(selectedCell.x, selectedCell.y)) : undefined).damage)} damage · {towerStats(inspectedTower, selectedCell ? game.terrain.get(keyOf(selectedCell.x, selectedCell.y)) : undefined).range.toFixed(1)} range
                   </span>
+                  {selectedCell && game.terrain.get(keyOf(selectedCell.x, selectedCell.y)) ? (
+                    <span className="terrain-bonus">
+                      {TERRAIN_DATA[game.terrain.get(keyOf(selectedCell.x, selectedCell.y))!].name} · {TERRAIN_DATA[game.terrain.get(keyOf(selectedCell.x, selectedCell.y))!].effect}
+                    </span>
+                  ) : null}
                   <div className="tower-actions">
                     <button onClick={moveSelected}>
                       Move <kbd>M</kbd>
@@ -1790,6 +1964,12 @@ export default function NatureDefenseGame() {
                   early and earn the displayed gold bonus. Rush again within
                   four seconds to add 25% to the multiplier, up to 2.5× gold.
                   Blightlings always find a shortest open route.
+                </p>
+              </div>
+              <div>
+                <h3>Read the wild terrain</h3>
+                <p>
+                  Every run grows a new field. Hills grant guardians 25% more damage, groves add 0.5 range, crags block everyone, and ponds let Mucklings, Sporefiends, the Grime King, and Smogbats cut through your maze.
                 </p>
               </div>
               <div>

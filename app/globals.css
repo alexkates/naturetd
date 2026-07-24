@@ -1124,6 +1124,56 @@ body {
   height: 100%;
 }
 
+.terrain-key {
+  position: absolute;
+  z-index: 7;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.terrain-key > span {
+  display: grid;
+  grid-template-columns: 11px auto;
+  width: max-content;
+  max-width: 180px;
+  column-gap: 5px;
+  align-items: center;
+  padding: 3px 7px 3px 5px;
+  border: 1px solid rgba(31, 55, 34, .28);
+  border-radius: 7px;
+  color: #f8f1d8;
+  background: rgba(30, 50, 34, .78);
+  box-shadow: 0 3px 10px rgba(18, 29, 20, .2);
+  backdrop-filter: blur(4px);
+}
+
+.terrain-key i {
+  grid-row: 1 / 3;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #76984b;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .2);
+}
+
+.terrain-key i.pond { background: #4c9fa8; }
+.terrain-key i.grove { background: #244f37; }
+.terrain-key i.crag { background: #85828a; border-radius: 2px; transform: rotate(45deg); }
+
+.terrain-key b {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.terrain-key small {
+  color: #dbe2bc;
+  font-size: 7px;
+  line-height: 1.1;
+}
+
 .canvas-stage canvas.building {
   cursor: crosshair;
 }
@@ -1609,6 +1659,14 @@ body {
   font-size: 11px;
 }
 
+.tower-popover .terrain-bonus {
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: #426237;
+  background: #e9f2bc;
+  font-weight: 800;
+}
+
 .tower-popover > span {
   color: #776681;
   font-family: "SFMono-Regular", Consolas, monospace;
@@ -2081,6 +2139,15 @@ body {
 
   .wave-peek {
     display: none;
+  }
+
+  .terrain-key small {
+    display: none;
+  }
+
+  .terrain-key > span {
+    grid-template-columns: 9px auto;
+    padding: 3px 5px;
   }
 
   .guardian-dock {

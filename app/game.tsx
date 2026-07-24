@@ -636,6 +636,15 @@ export default function NatureDefenseGame() {
         (projectile) => projectile.age < projectile.duration,
       );
 
+      if (
+        game.phase === "wave" &&
+        game.waveQueue.length === 0 &&
+        game.enemies.length === 0
+      ) {
+        game.phase = "intermission";
+        game.message = "The grove is clear. Build and uproot before the next Blight.";
+        game.messageUntil = game.elapsed + 4;
+      }
     },
     [fireTower, refresh, spawnEnemy, syncBest],
   );
@@ -716,7 +725,7 @@ export default function NatureDefenseGame() {
     }
 
     const hover = hoverRef.current;
-    if (hover && game.phase !== "gameover") {
+    if (hover && game.phase === "intermission") {
       const occupied = game.towers.has(keyOf(hover.x, hover.y));
       const forbidden =
         (hover.x === START.x && hover.y === START.y) ||
@@ -870,7 +879,8 @@ export default function NatureDefenseGame() {
         setSelectedCell(point);
         return;
       }
-      if (game.phase === "gameover") {
+      if (game.phase !== "intermission") {
+        notify("Guardians can only be planted between waves.");
         return;
       }
       if (
@@ -957,7 +967,7 @@ export default function NatureDefenseGame() {
   const sellSelected = useCallback(() => {
     const game = gameRef.current;
     const cell = selectedCellRef.current;
-    if (!cell || game.phase === "gameover") return;
+    if (!cell || game.phase !== "intermission") return;
     const key = keyOf(cell.x, cell.y);
     const tower = game.towers.get(key);
     if (!tower) return;
@@ -972,7 +982,7 @@ export default function NatureDefenseGame() {
 
   const togglePause = useCallback(() => {
     const game = gameRef.current;
-    if (game.phase === "gameover") return;
+    if (game.phase !== "wave") return;
     game.paused = !game.paused;
     refresh();
   }, [refresh]);
@@ -1068,7 +1078,9 @@ export default function NatureDefenseGame() {
                   ? "Heartwood wilted"
                   : game.paused
                     ? "Paused"
-                    : `Next Blight · ${Math.ceil(game.nextWaveIn)}s`}
+                    : game.phase === "intermission"
+                      ? `Build window · ${Math.ceil(game.nextWaveIn)}s`
+                      : `Next Blight · ${Math.ceil(game.nextWaveIn)}s`}
               </span>
               <span className="seed">Run #{game.seed.toString(16).toUpperCase()}</span>
             </div>
@@ -1137,7 +1149,7 @@ export default function NatureDefenseGame() {
                 <h2>Wild guardians</h2>
               </div>
               <span className="phase-note">
-                Live building
+                {game.phase === "intermission" ? "Build open" : "Wave locked"}
               </span>
             </div>
             <div className="tower-list">
@@ -1149,7 +1161,7 @@ export default function NatureDefenseGame() {
                     key={kind}
                     className={`tower-card ${active ? "selected" : ""}`}
                     onClick={() => selectTower(kind)}
-                    disabled={game.phase === "gameover"}
+                    disabled={game.phase !== "intermission"}
                     style={{ "--tower-color": tower.color } as React.CSSProperties}
                   >
                     <span className="tower-art">
@@ -1207,7 +1219,7 @@ export default function NatureDefenseGame() {
                 <button
                   className="sell-button"
                   onClick={sellSelected}
-                  disabled={game.phase === "gameover"}
+                  disabled={game.phase !== "intermission"}
                 >
                   Uproot · +{inspectedTower.spent} <kbd>S</kbd>
                 </button>
@@ -1257,7 +1269,8 @@ export default function NatureDefenseGame() {
 
       <footer className="game-footer">
         <p>
-          1–4 select guardians · click to build · S uproots with a 100% refund.
+          1–4 select guardians · click to build · S uproots with a 100% refund
+          between waves.
         </p>
         <p>Space rushes a wave · F changes speed · P pauses · routes stay hidden.</p>
       </footer>

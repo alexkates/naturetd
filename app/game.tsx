@@ -364,11 +364,13 @@ export default function NatureDefenseGame() {
   const hoverRef = useRef<Point | null>(null);
   const selectedKindRef = useRef<TowerKind>("thorn");
   const selectedCellRef = useRef<Point | null>(null);
+  const helpPausedRef = useRef(false);
   const frameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const [, setRevision] = useState(0);
   const [selectedKind, setSelectedKind] = useState<TowerKind>("thorn");
   const [selectedCell, setSelectedCell] = useState<Point | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const refresh = useCallback(() => setRevision((revision) => revision + 1), []);
 
@@ -754,6 +756,16 @@ export default function NatureDefenseGame() {
             CELL - 2,
           );
         }
+        const guardian = imagesRef.current.get(selectedTower.guardian);
+        if (guardian?.complete) {
+          context.drawImage(
+            guardian,
+            hover.x * CELL + 17,
+            hover.y * CELL + 13,
+            22,
+            22,
+          );
+        }
         context.globalAlpha = 1;
       }
     }
@@ -998,9 +1010,35 @@ export default function NatureDefenseGame() {
     refresh();
   }, [refresh]);
 
+  const openHelp = useCallback(() => {
+    const game = gameRef.current;
+    helpPausedRef.current = game.paused;
+    if (game.phase === "wave") game.paused = true;
+    setHelpOpen(true);
+    refresh();
+  }, [refresh]);
+
+  const closeHelp = useCallback(() => {
+    const game = gameRef.current;
+    if (game.phase === "wave") game.paused = helpPausedRef.current;
+    setHelpOpen(false);
+    refresh();
+  }, [refresh]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
+      if (helpOpen) {
+        if (
+          event.key === "Escape" ||
+          event.key.toLowerCase() === "h" ||
+          event.key === "?"
+        ) {
+          event.preventDefault();
+          closeHelp();
+        }
+        return;
+      }
       if (event.key >= "1" && event.key <= "4") {
         selectTower(TOWER_ORDER[Number(event.key) - 1]);
       } else if (event.code === "Space") {
@@ -1014,13 +1052,20 @@ export default function NatureDefenseGame() {
         setSpeed(gameRef.current.speed === 1 ? 2 : 1);
       } else if (event.key.toLowerCase() === "n") {
         restart();
+      } else if (
+        event.key.toLowerCase() === "h" ||
+        (event.key === "?" && event.shiftKey)
+      ) {
+        if (helpOpen) closeHelp();
+        else openHelp();
       } else if (event.key === "Escape") {
-        setSelectedCell(null);
+        if (helpOpen) closeHelp();
+        else setSelectedCell(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [restart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
+  }, [closeHelp, helpOpen, openHelp, restart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
@@ -1031,48 +1076,43 @@ export default function NatureDefenseGame() {
 
   return (
     <main className="game-shell">
-      <header className="game-header">
-        <div className="brand-lockup">
-          <div className="brand-mark">ND</div>
-          <div>
-            <p className="eyebrow">Whimsical endless maze defense</p>
-            <h1>Nature&apos;s Last Stand</h1>
-          </div>
-        </div>
-        <div className="resource-bar" aria-label="Current run statistics">
-          <div className="resource">
-            <span>Gold</span>
-            <strong className="gold-value">{Math.floor(game.gold)}</strong>
-          </div>
-          <div className="resource">
-            <span>Heartwood</span>
-            <strong className={game.health <= 5 ? "danger-value" : ""}>
-              {game.health}/20
-            </strong>
-          </div>
-          <div className="resource">
-            <span>Wave</span>
-            <strong>{game.wave}</strong>
-          </div>
-          <div className="resource desktop-stat">
-            <span>Best</span>
-            <strong>{game.bestWave}</strong>
-          </div>
-          <div className="resource desktop-stat">
-            <span>Cleared</span>
-            <strong>{game.kills}</strong>
-          </div>
-          <div className="resource desktop-stat">
-            <span>Cleansing</span>
-            <strong>{Math.round(game.damage)}</strong>
-          </div>
-        </div>
-      </header>
+      <section className="game-surface">
+        <div className="board-frame">
+          <header className="hud-topbar">
+            <div className="brand-lockup">
+              <div className="brand-mark">ND</div>
+              <div>
+                <p className="eyebrow">Endless maze defense</p>
+                <h1>Nature&apos;s Last Stand</h1>
+              </div>
+            </div>
 
-      <section className="game-layout">
-        <div className="board-column">
-          <div className="board-frame">
-            <div className="board-topline">
+            <div className="resource-bar" aria-label="Current run statistics">
+              <div className="resource">
+                <span>Gold</span>
+                <strong className="gold-value">{Math.floor(game.gold)}</strong>
+              </div>
+              <div className="resource">
+                <span>Heartwood</span>
+                <strong className={game.health <= 5 ? "danger-value" : ""}>
+                  {game.health}/20
+                </strong>
+              </div>
+              <div className="resource">
+                <span>Wave</span>
+                <strong>{game.wave}</strong>
+              </div>
+              <div className="resource desktop-stat">
+                <span>Cleared</span>
+                <strong>{game.kills}</strong>
+              </div>
+              <div className="resource desktop-stat">
+                <span>Cleansing</span>
+                <strong>{Math.round(game.damage)}</strong>
+              </div>
+            </div>
+
+            <div className="hud-actions">
               <span className={`phase-pill ${game.phase}`}>
                 {game.phase === "gameover"
                   ? "Heartwood wilted"
@@ -1082,12 +1122,52 @@ export default function NatureDefenseGame() {
                       ? `Build window · ${Math.ceil(game.nextWaveIn)}s`
                       : `Next Blight · ${Math.ceil(game.nextWaveIn)}s`}
               </span>
-              <span className="seed">Run #{game.seed.toString(16).toUpperCase()}</span>
+              <button
+                className="rush-button"
+                onClick={startWave}
+                disabled={game.phase === "gameover"}
+              >
+                Wave {game.wave + 1} · +{rushBonus} <kbd>Space</kbd>
+              </button>
+              <div className="speed-controls">
+                <button
+                  className={game.speed === 1 ? "active" : ""}
+                  onClick={() => setSpeed(1)}
+                  aria-label="Normal speed"
+                >
+                  1×
+                </button>
+                <button
+                  className={game.speed === 2 ? "active" : ""}
+                  onClick={() => setSpeed(2)}
+                  aria-label="Double speed"
+                >
+                  2×
+                </button>
+                <button
+                  onClick={togglePause}
+                  disabled={game.phase !== "wave"}
+                  aria-label={game.paused ? "Resume" : "Pause"}
+                >
+                  {game.paused ? "▶" : "Ⅱ"}
+                </button>
+              </div>
+              <button
+                className="help-button"
+                onClick={openHelp}
+                aria-label="Open game help"
+              >
+                ? <span>Help</span>
+              </button>
             </div>
+          </header>
+
+          <div className="canvas-stage">
             <canvas
               ref={canvasRef}
               width={WIDTH}
               height={HEIGHT}
+              className={game.phase === "intermission" ? "building" : ""}
               onClick={handleCanvasClick}
               onMouseMove={handlePointerMove}
               onMouseLeave={() => {
@@ -1095,6 +1175,87 @@ export default function NatureDefenseGame() {
               }}
               aria-label="24 by 14 tower defense game board"
             />
+
+            <div className="game-message" aria-live="polite">
+              <span>✦</span>
+              {game.messageUntil > game.elapsed
+                ? game.message
+                : `${game.enemies.length + game.waveQueue.length} Blightlings active · next wave in ${Math.ceil(game.nextWaveIn)}s`}
+            </div>
+
+            <div className="wave-peek" aria-label={`Upcoming wave ${game.wave + 1}`}>
+              <span>Next · {8 + (game.wave + 1) * 2}</span>
+              <div>
+                {nextInvaders.map((invader) => (
+                  <img
+                    key={invader.name}
+                    src={invaderImagePath(invader)}
+                    alt={invader.name}
+                    title={invader.name}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="guardian-dock" aria-label="Guardian build shortcuts">
+              <span className="dock-label">Guardians</span>
+              {TOWER_ORDER.map((kind) => {
+                const tower = TOWER_DATA[kind];
+                return (
+                  <button
+                    key={kind}
+                    className={selectedKind === kind ? "selected" : ""}
+                    onClick={() => selectTower(kind)}
+                    disabled={game.phase !== "intermission"}
+                    title={`${tower.name}: ${tower.description}`}
+                    style={{ "--tower-color": tower.color } as React.CSSProperties}
+                  >
+                    <span className="dock-art">
+                      <img src={tower.image} alt="" />
+                      <img src={tower.guardian} alt="" />
+                    </span>
+                    <span>
+                      <strong>{tower.hotkey}</strong>
+                      <small>{tower.cost}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="hotkey-strip" aria-label="Keyboard shortcuts">
+              <span><kbd>1–4</kbd> Build</span>
+              <span><kbd>S</kbd> Uproot</span>
+              <span><kbd>Space</kbd> Rush</span>
+              <span><kbd>F</kbd> Speed</span>
+              <span><kbd>P</kbd> Pause</span>
+              <button onClick={openHelp}><kbd>H</kbd> All help</button>
+            </div>
+
+            {selectedCell && inspectedTower && (
+              <div
+                className={`tower-popover ${selectedCell.y < 3 ? "below" : ""}`}
+                style={{
+                  left: `${((selectedCell.x + 0.5) / COLS) * 100}%`,
+                  top: `${((selectedCell.y + 0.5) / ROWS) * 100}%`,
+                }}
+              >
+                <strong>{TOWER_DATA[inspectedTower.kind].name}</strong>
+                <span>
+                  {inspectedTower.kills} cleared · {Math.round(inspectedTower.damageDone)} cleansing
+                </span>
+                <span>
+                  {Math.round(towerStats(inspectedTower).damage)} damage · {towerStats(inspectedTower).range.toFixed(1)} range
+                </span>
+                <button
+                  onClick={sellSelected}
+                  disabled={game.phase !== "intermission"}
+                >
+                  Uproot +{inspectedTower.spent} <kbd>S</kbd>
+                </button>
+              </div>
+            )}
+
             {game.phase === "gameover" && (
               <div className="game-over">
                 <p className="eyebrow">The Heartwood has wilted</p>
@@ -1108,171 +1269,77 @@ export default function NatureDefenseGame() {
               </div>
             )}
           </div>
-          <div className="message-row" aria-live="polite">
-            <span className="message-icon">✦</span>
-            <span>
-              {game.messageUntil > game.elapsed
-                ? game.message
-                : `${game.enemies.length + game.waveQueue.length} Blightlings active · next wave in ${Math.ceil(game.nextWaveIn)}s`}
-            </span>
-            <div className="speed-controls">
-              <button
-                className={game.speed === 1 ? "active" : ""}
-                onClick={() => setSpeed(1)}
-                aria-label="Normal speed"
-              >
-                1×
-              </button>
-              <button
-                className={game.speed === 2 ? "active" : ""}
-                onClick={() => setSpeed(2)}
-                aria-label="Double speed"
-              >
-                2×
-              </button>
-              <button
-                onClick={togglePause}
-                disabled={game.phase === "gameover"}
-                aria-label={game.paused ? "Resume" : "Pause"}
-              >
-                {game.paused ? "▶" : "Ⅱ"}
-              </button>
-            </div>
-          </div>
         </div>
-
-        <aside className="control-panel">
-          <section className="panel-section">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Grow defenses</p>
-                <h2>Wild guardians</h2>
-              </div>
-              <span className="phase-note">
-                {game.phase === "intermission" ? "Build open" : "Wave locked"}
-              </span>
-            </div>
-            <div className="tower-list">
-              {TOWER_ORDER.map((kind) => {
-                const tower = TOWER_DATA[kind];
-                const active = selectedKind === kind && !inspectedTower;
-                return (
-                  <button
-                    key={kind}
-                    className={`tower-card ${active ? "selected" : ""}`}
-                    onClick={() => selectTower(kind)}
-                    disabled={game.phase !== "intermission"}
-                    style={{ "--tower-color": tower.color } as React.CSSProperties}
-                  >
-                    <span className="tower-art">
-                      <img src={tower.image} alt="" />
-                      <img src={tower.guardian} alt="" />
-                    </span>
-                    <span className="tower-copy">
-                      <strong>{tower.name}</strong>
-                      <small>{tower.description}</small>
-                    </span>
-                    <span className="tower-price">
-                      <kbd>{tower.hotkey}</kbd>
-                      {tower.cost}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {inspectedTower ? (
-            <section className="panel-section inspector">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Selected defense</p>
-                  <h2>{TOWER_DATA[inspectedTower.kind].name}</h2>
-                </div>
-                <span className="tier">Guardian</span>
-              </div>
-              <div className="inspector-body">
-                <span className="inspector-art">
-                  <img src={TOWER_DATA[inspectedTower.kind].image} alt="" />
-                  <img src={TOWER_DATA[inspectedTower.kind].guardian} alt="" />
-                </span>
-                <dl>
-                  <div>
-                    <dt>Damage</dt>
-                    <dd>{Math.round(towerStats(inspectedTower).damage)}</dd>
-                  </div>
-                  <div>
-                    <dt>Range</dt>
-                    <dd>{towerStats(inspectedTower).range.toFixed(1)}</dd>
-                  </div>
-                  <div>
-                    <dt>Kills</dt>
-                    <dd>{inspectedTower.kills}</dd>
-                  </div>
-                  <div>
-                    <dt>Dealt</dt>
-                    <dd>{Math.round(inspectedTower.damageDone)}</dd>
-                  </div>
-                </dl>
-              </div>
-              <div className="inspector-actions">
-                <button
-                  className="sell-button"
-                  onClick={sellSelected}
-                  disabled={game.phase !== "intermission"}
-                >
-                  Uproot · +{inspectedTower.spent} <kbd>S</kbd>
-                </button>
-              </div>
-            </section>
-          ) : (
-            <section className="panel-section wave-preview">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Next mixed wave</p>
-                  <h2>Wave {game.wave + 1}</h2>
-                </div>
-                <span>{8 + (game.wave + 1) * 2} total</span>
-              </div>
-              <div className="animal-preview">
-                {nextInvaders.map((invader) => (
-                  <div key={invader.name} title={invader.name}>
-                    <img src={invaderImagePath(invader)} alt={invader.name} />
-                  </div>
-                ))}
-              </div>
-              <p>
-                {game.wave + 1 > 1
-                  ? "Every wave mixes unlocked Blightlings. Tougher breeds join quickly."
-                  : "Mucklings, Cinderlings, and Scrapbugs all arrive together."}
-              </p>
-            </section>
-          )}
-
-          <button
-            className="primary-action start-wave"
-            onClick={startWave}
-            disabled={game.phase === "gameover"}
-          >
-            {game.phase === "gameover"
-              ? "Run ended"
-              : `Call wave ${game.wave + 1} early · +${rushBonus}`}
-            <span>Space</span>
-          </button>
-          <div className="run-metrics">
-            <span>1–4 build · S uproot</span>
-            <button onClick={restart}>New run · N</button>
-          </div>
-        </aside>
       </section>
 
-      <footer className="game-footer">
-        <p>
-          1–4 select guardians · click to build · S uproots with a 100% refund
-          between waves.
-        </p>
-        <p>Space rushes a wave · F changes speed · P pauses · routes stay hidden.</p>
-      </footer>
+      {helpOpen && (
+        <div className="help-backdrop" role="presentation" onMouseDown={closeHelp}>
+          <section
+            className="help-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="help-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              className="help-close"
+              onClick={closeHelp}
+              aria-label="Close help"
+            >
+              ×
+            </button>
+            <p className="eyebrow">Field guide</p>
+            <h2 id="help-title">How to guard the Heartwood</h2>
+            <div className="help-grid">
+              <div>
+                <h3>Build the maze</h3>
+                <p>
+                  Choose a guardian with 1–4, move over the grass, and click to
+                  plant it. Guardians block the Blight, but every build must
+                  leave a four-directional route to the Heartwood.
+                </p>
+              </div>
+              <div>
+                <h3>Beat the clock</h3>
+                <p>
+                  A mixed wave arrives every 30 seconds. Press Space to call it
+                  early and earn the displayed gold bonus. Blightlings always
+                  find a shortest open route.
+                </p>
+              </div>
+              <div>
+                <h3>Rebuild freely</h3>
+                <p>
+                  Between waves, select a planted guardian and press S to
+                  uproot it for a 100% refund. Building and uprooting lock while
+                  Blightlings are active.
+                </p>
+              </div>
+              <div>
+                <h3>Know the guardians</h3>
+                <p>
+                  Chickadees fire quickly, foxes slow, boars cleanse groups,
+                  and wolves chain spirit sparks. Mix them along a long,
+                  twisting route.
+                </p>
+              </div>
+            </div>
+            <div className="help-hotkeys">
+              <span><kbd>1–4</kbd> Choose guardian</span>
+              <span><kbd>S</kbd> Uproot selected</span>
+              <span><kbd>Space</kbd> Call wave</span>
+              <span><kbd>F</kbd> Toggle speed</span>
+              <span><kbd>P</kbd> Pause</span>
+              <span><kbd>N</kbd> New run</span>
+              <span><kbd>Esc</kbd> Close or deselect</span>
+              <span><kbd>H</kbd> Help</span>
+            </div>
+            <button className="primary-action" onClick={closeHelp}>
+              Back to the grove
+            </button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

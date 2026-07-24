@@ -15,6 +15,7 @@ const WIDTH = COLS * CELL;
 const HEIGHT = ROWS * CELL;
 const START = { x: 0, y: 4 };
 const CITY = { x: 19, y: 5 };
+const MAX_PENDING_BLIGHTLINGS = 240;
 
 type Point = { x: number; y: number };
 type TowerKind = "thorn" | "frost" | "boulder" | "lightning";
@@ -397,7 +398,7 @@ const BUFF_DATA: Record<BuffKind, {
     name: "Deep Freeze",
     icon: "❄",
     family: "Ice Storm mutation",
-    description: "Each Ice Storm wave hits 2 more targets and deals 8% more damage.",
+    description: "Each Ice Storm wave hits 2 more targets and deals 1.25% more max-health damage.",
     color: "#8ee8ff",
   },
   stormShepherd: {
@@ -1081,7 +1082,6 @@ export default function NatureDefenseGame() {
         game.spawnClock = game.spawnInterval;
       }
 
-      const spellPower = 55 * Math.pow(1.16, Math.max(0, game.wave - 1));
       for (const effect of game.spellEffects) {
         if (effect.kind === "ice") {
           while (game.elapsed >= effect.nextTick && effect.nextTick <= effect.endsAt) {
@@ -1102,7 +1102,7 @@ export default function NatureDefenseGame() {
                 damageEnemyWithSpell(
                   game,
                   enemy,
-                  spellPower * 0.62 * (1 + deepFreezeRank * 0.08),
+                  enemy.maxHp * (0.07 + Math.min(4, deepFreezeRank) * 0.0125),
                 );
               }
               enemy.slowFactor = Math.min(enemy.slowFactor, 0.38);
@@ -1587,6 +1587,10 @@ export default function NatureDefenseGame() {
       if (game.phase === "gameover" || game.pendingBuffChoices) return;
       const spell = SPELL_DATA[kind];
       const cost = spellCost(game, kind);
+      if (game.spellEffects.some((effect) => effect.kind === kind)) {
+        notify(spell.name + " is already active.");
+        return;
+      }
       if (selectedSpellRef.current === kind) {
         cancelSpell();
         return;
@@ -1863,6 +1867,12 @@ export default function NatureDefenseGame() {
   const startWave = useCallback(() => {
     const game = gameRef.current;
     if (game.phase === "gameover" || game.pendingBuffChoices) return;
+    const pendingBlightlings =
+      game.waveQueue.length + game.enemies.filter((enemy) => !enemy.dead).length;
+    if (pendingBlightlings >= MAX_PENDING_BLIGHTLINGS) {
+      notify("The rift is overloaded — clear Blightlings before rushing again.");
+      return;
+    }
     const chainActive = game.realElapsed - game.lastRushAt <= 4;
     const rushStreak = chainActive ? game.rushStreak + 1 : 1;
     const rushMultiplier = Math.min(2.5, 1 + (rushStreak - 1) * 0.25);
@@ -1876,7 +1886,7 @@ export default function NatureDefenseGame() {
     syncBest(game.wave);
     setSelectedCell(null);
     refresh();
-  }, [refresh, syncBest]);
+  }, [notify, refresh, syncBest]);
 
   const sellSelected = useCallback(() => {
     const game = gameRef.current;
@@ -2125,7 +2135,7 @@ export default function NatureDefenseGame() {
         selectTower(TOWER_ORDER[Number(event.key) - 1]);
       } else if (event.code === "Space") {
         event.preventDefault();
-        startWave();
+        if (!event.repeat) startWave();
       } else if (event.key.toLowerCase() === "p") {
         togglePause();
       } else if (event.key.toLowerCase() === "u") {
@@ -2720,7 +2730,7 @@ export default function NatureDefenseGame() {
                 <h3>Buy wild magic</h3>
                 <p>
                   Press Shift+1–4 to buy and arm a one-use spell, then click the
-                  field to cast it. Each purchase grants one charge; casting consumes it. Repeated uses cost 16% more, up to 3×. Spells prioritize threats nearest the Heartwood and have target limits; Solar Flare shows separate damage and stun rings.
+                  field to cast it. Each purchase grants one charge; casting consumes it. Repeated uses cost 16% more, up to 3×, and the same spell cannot overlap itself. Spells prioritize threats nearest the Heartwood and have target limits; Solar Flare shows separate damage and stun rings.
                 </p>
               </div>
             </div>

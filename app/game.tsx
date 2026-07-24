@@ -690,7 +690,7 @@ export default function NatureDefenseGame() {
   const boardRef = useRef<HTMLDivElement>(null);
   const healthRef = useRef<HTMLDivElement>(null);
   const guardianDockRef = useRef<HTMLDivElement>(null);
-  const hotkeyRef = useRef<HTMLDivElement>(null);
+  const hudActionsRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game>(createGame());
   const imagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const hoverRef = useRef<Point | null>(null);
@@ -1967,7 +1967,7 @@ export default function NatureDefenseGame() {
         boardRef,
         healthRef,
         guardianDockRef,
-        hotkeyRef,
+        hudActionsRef,
       ][introStep].current;
       if (!target) return;
       const rect = target.getBoundingClientRect();
@@ -2108,7 +2108,7 @@ export default function NatureDefenseGame() {
               </div>
             </div>
 
-            <div className="hud-actions">
+            <div ref={hudActionsRef} className="hud-actions">
               <span className={`phase-pill ${game.phase}`}>
                 {game.phase === "gameover"
                   ? "Heartwood wilted"
@@ -2538,21 +2538,6 @@ export default function NatureDefenseGame() {
               })}
             </div>
 
-            <div
-              ref={hotkeyRef}
-              className="hotkey-strip"
-              aria-label="Keyboard shortcuts"
-            >
-              <span><kbd>1–4</kbd> Build</span>
-              <span><kbd>⇧1–4</kbd> Spells</span>
-              <span><kbd>U</kbd> Upgrade</span>
-              <span><kbd>S</kbd> Sell</span>
-              <span><kbd>M</kbd> Move</span>
-              <span><kbd>Space</kbd> Rush</span>
-              <span><kbd>F</kbd> Speed</span>
-              <span><kbd>P</kbd> Pause</span>
-              <button onClick={openHelp}><kbd>H</kbd> All help</button>
-            </div>
           </div>
         </div>
       </section>
@@ -2626,6 +2611,7 @@ export default function NatureDefenseGame() {
                 </p>
               </div>
             </div>
+            <h3 className="help-hotkey-title">Keyboard shortcuts</h3>
             <div className="help-hotkeys">
               <span><kbd>1–4</kbd> Choose guardian</span>
               <span><kbd>Shift+1–4</kbd> Buy/arm spell</span>

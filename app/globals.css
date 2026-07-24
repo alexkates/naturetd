@@ -1042,6 +1042,29 @@ body {
   padding: 0 10px;
 }
 
+.rush-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.rush-button.chain-active {
+  border-color: #d57b22;
+  color: #6a3f16;
+  background: linear-gradient(180deg, #fff29a, #ffc95e);
+  box-shadow: 0 0 15px rgba(255, 185, 62, 0.62);
+}
+
+.rush-button.chain-active::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--rush-window);
+  height: 3px;
+  background: #d86b25;
+  content: "";
+}
+
 .hud-actions .speed-controls {
   flex-wrap: nowrap;
 }
@@ -1180,6 +1203,25 @@ body {
   margin: 0;
 }
 
+.wave-announcement.rush-chain {
+  border-color: #e1952b;
+  background:
+    radial-gradient(circle at top, rgba(255, 220, 69, 0.72), transparent 62%),
+    linear-gradient(145deg, rgba(255, 251, 221, 0.98), rgba(247, 218, 255, 0.97));
+  box-shadow:
+    0 22px 60px rgba(70, 34, 80, 0.45),
+    0 0 30px rgba(255, 196, 54, 0.7),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.56);
+  animation:
+    wave-arrival 2.6s ease both,
+    rush-celebration 520ms ease-out;
+}
+
+.wave-announcement.rush-chain p,
+.wave-announcement.rush-chain small {
+  color: #a35614;
+}
+
 .wave-announcement p {
   color: #86619f;
   font-family: "SFMono-Regular", Consolas, monospace;
@@ -1236,6 +1278,58 @@ body {
   color: #a76b13;
   font-size: 9px;
   font-weight: 800;
+}
+
+.rush-chain-hud {
+  position: absolute;
+  z-index: 13;
+  top: 11px;
+  left: 50%;
+  overflow: hidden;
+  display: grid;
+  min-width: 210px;
+  gap: 1px;
+  padding: 8px 12px 10px;
+  border: 1px solid #dc8e26;
+  border-radius: 12px;
+  color: #693f1b;
+  background: rgba(255, 239, 149, 0.94);
+  box-shadow: 0 8px 24px rgba(71, 40, 25, 0.28);
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  backdrop-filter: blur(7px);
+}
+
+.rush-chain-hud::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--rush-progress);
+  height: 4px;
+  background: linear-gradient(90deg, #e87828, #ffd64c);
+  content: "";
+  transition: width 160ms linear;
+}
+
+.rush-chain-hud strong {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.rush-chain-hud span {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+}
+
+@keyframes rush-celebration {
+  0% {
+    transform: translate(-50%, -50%) scale(0.72) rotate(-2deg);
+  }
+  65% {
+    transform: translate(-50%, -50%) scale(1.06) rotate(1deg);
+  }
 }
 
 @keyframes wave-arrival {
@@ -1360,6 +1454,12 @@ body {
   transform: none;
 }
 
+.guardian-dock button:last-of-type .guardian-tooltip {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+
 .guardian-dock button:hover .guardian-tooltip,
 .guardian-dock button:focus-visible .guardian-tooltip {
   display: grid;
@@ -1438,8 +1538,24 @@ body {
   pointer-events: auto;
 }
 
+.tower-popover.edge-left {
+  transform: translate(-8%, calc(-100% - 25px));
+}
+
+.tower-popover.edge-right {
+  transform: translate(-92%, calc(-100% - 25px));
+}
+
 .tower-popover.below {
   transform: translate(-50%, 25px);
+}
+
+.tower-popover.below.edge-left {
+  transform: translate(-8%, 25px);
+}
+
+.tower-popover.below.edge-right {
+  transform: translate(-92%, 25px);
 }
 
 .tower-popover strong {

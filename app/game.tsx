@@ -71,6 +71,8 @@ type WaveAnnouncement = {
   total: number;
   roster: { invader: Invader; count: number }[];
   earlyBonus: number;
+  rushStreak: number;
+  rushMultiplier: number;
   expiresAt: number;
 };
 
@@ -98,6 +100,8 @@ type Game = {
   rushGold: number;
   timeSaved: number;
   wavesRushed: number;
+  rushStreak: number;
+  lastRushAt: number;
   towersBuilt: number;
   bestWave: number;
   message: string;
@@ -342,6 +346,8 @@ function createGame(seed = newSeed()): Game {
     rushGold: 0,
     timeSaved: 0,
     wavesRushed: 0,
+    rushStreak: 0,
+    lastRushAt: -Infinity,
     towersBuilt: 0,
     bestWave: 0,
     message: "Grow a guardian maze before the Blight arrives.",
@@ -380,7 +386,12 @@ function makeWave(game: Game) {
   return queue;
 }
 
-function queueNextWave(game: Game, earlyBonus = 0) {
+function queueNextWave(
+  game: Game,
+  earlyBonus = 0,
+  rushStreak = 0,
+  rushMultiplier = 1,
+) {
   game.wave += 1;
   const wave = makeWave(game);
   const counts = new Map<string, { invader: Invader; count: number }>();
@@ -407,6 +418,8 @@ function queueNextWave(game: Game, earlyBonus = 0) {
     total: wave.length,
     roster: [...counts.values()],
     earlyBonus,
+    rushStreak,
+    rushMultiplier,
     expiresAt: Date.now() + 2600,
   };
 }
@@ -1127,10 +1140,16 @@ export default function NatureDefenseGame() {
   const startWave = useCallback(() => {
     const game = gameRef.current;
     if (game.phase === "gameover") return;
-    const bonus = Math.max(1, Math.ceil(game.nextWaveIn));
+    const chainActive = game.realElapsed - game.lastRushAt <= 4;
+    const rushStreak = chainActive ? game.rushStreak + 1 : 1;
+    const rushMultiplier = Math.min(2.5, 1 + (rushStreak - 1) * 0.25);
+    const baseBonus = Math.max(1, Math.ceil(game.nextWaveIn));
+    const bonus = Math.ceil(baseBonus * rushMultiplier);
+    game.rushStreak = rushStreak;
+    game.lastRushAt = game.realElapsed;
     game.timeSaved += Math.max(0, game.nextWaveIn);
     game.wavesRushed += 1;
-    queueNextWave(game, bonus);
+    queueNextWave(game, bonus, rushStreak, rushMultiplier);
     syncBest(game.wave);
     setSelectedCell(null);
     refresh();
@@ -1367,7 +1386,13 @@ export default function NatureDefenseGame() {
     ? game.towers.get(keyOf(selectedCell.x, selectedCell.y))
     : undefined;
   const nextInvaders = useMemo(() => upcomingInvaders(game.wave), [game.wave]);
-  const rushBonus = Math.max(1, Math.ceil(game.nextWaveIn));
+  const rushWindow = Math.max(0, 4 - (game.realElapsed - game.lastRushAt));
+  const nextRushStreak = rushWindow > 0 ? game.rushStreak + 1 : 1;
+  const nextRushMultiplier = Math.min(
+    2.5,
+    1 + (nextRushStreak - 1) * 0.25,
+  );
+  const rushBonus = Math.ceil(Math.max(1, game.nextWaveIn) * nextRushMultiplier);
   const waveAnnouncement =
     game.waveAnnouncement && game.waveAnnouncement.expiresAt > Date.now()
       ? game.waveAnnouncement
@@ -1422,11 +1447,22 @@ export default function NatureDefenseGame() {
                       : `Next Blight · ${Math.ceil(game.nextWaveIn)}s`}
               </span>
               <button
-                className="rush-button"
+                className={`rush-button ${rushWindow > 0 ? "chain-active" : ""}`}
                 onClick={startWave}
                 disabled={game.phase === "gameover"}
+                aria-label={
+                  rushWindow > 0
+                    ? `Continue rush chain at ${nextRushMultiplier.toFixed(2)} times gold`
+                    : `Call wave ${game.wave + 1} early`
+                }
+                style={
+                  {
+                    "--rush-window": `${(rushWindow / 4) * 100}%`,
+                  } as React.CSSProperties
+                }
               >
-                Wave {formatNumber(game.wave + 1)} · +{formatNumber(rushBonus)} <kbd>Space</kbd>
+                {rushWindow > 0 ? `Chain ×${nextRushStreak}` : `Wave ${formatNumber(game.wave + 1)}`}
+                {" "}· +{formatNumber(rushBonus)} <kbd>Space</kbd>
               </button>
               <div className="speed-controls">
                 <button
@@ -1509,11 +1545,17 @@ export default function NatureDefenseGame() {
               {waveAnnouncement ? (
                 <div
                   key={waveAnnouncement.wave}
-                  className="wave-announcement"
+                  className={`wave-announcement ${waveAnnouncement.earlyBonus ? "rush-chain" : ""}`}
                   role="status"
                   aria-live="assertive"
                 >
-                  <p>The rift stirs</p>
+                  <p>
+                    {waveAnnouncement.rushStreak > 1
+                      ? `Rush chain ×${waveAnnouncement.rushStreak}`
+                      : waveAnnouncement.earlyBonus
+                        ? "Wave rushed"
+                        : "The rift stirs"}
+                  </p>
                   <h2>Wave {waveAnnouncement.wave}</h2>
                   <strong>{formatNumber(waveAnnouncement.total)} creatures incoming</strong>
                   <div className="wave-roster">
@@ -1525,14 +1567,38 @@ export default function NatureDefenseGame() {
                     ))}
                   </div>
                   {waveAnnouncement.earlyBonus > 0 ? (
-                    <small>Early call bonus +{formatNumber(waveAnnouncement.earlyBonus)} gold</small>
+                    <small>
+                      +{formatNumber(waveAnnouncement.earlyBonus)} gold · {waveAnnouncement.rushMultiplier.toFixed(2)}× rush multiplier
+                    </small>
                   ) : null}
+                </div>
+              ) : null}
+
+              {rushWindow > 0 && !waveAnnouncement ? (
+                <div
+                  className="rush-chain-hud"
+                  style={
+                    {
+                      "--rush-progress": `${(rushWindow / 4) * 100}%`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <strong>
+                    {game.rushStreak > 1 ? `Rush chain ×${game.rushStreak}` : "Rush chain ready"}
+                  </strong>
+                  <span>{rushWindow.toFixed(1)}s · next gold {nextRushMultiplier.toFixed(2)}×</span>
                 </div>
               ) : null}
 
               {selectedCell && inspectedTower && (
                 <div
-                  className={`tower-popover ${selectedCell.y < 3 ? "below" : ""}`}
+                  className={`tower-popover ${selectedCell.y < 3 ? "below" : ""} ${
+                    selectedCell.x < 3
+                      ? "edge-left"
+                      : selectedCell.x > COLS - 4
+                        ? "edge-right"
+                        : ""
+                  }`}
                   style={{
                     left: `${((selectedCell.x + 0.5) / COLS) * 100}%`,
                     top: `${((selectedCell.y + 0.5) / ROWS) * 100}%`,

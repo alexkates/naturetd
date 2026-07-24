@@ -226,7 +226,7 @@ canvas {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 12 / 7;
+  aspect-ratio: 2 / 1;
   image-rendering: pixelated;
   touch-action: manipulation;
 }
@@ -1095,10 +1095,10 @@ body {
   box-sizing: content-box;
   width: min(
     calc(100vw - 26px),
-    calc((100dvh - 206px) * 12 / 7)
+    calc((100dvh - 206px) * 2 / 1)
   );
   max-width: 100%;
-  aspect-ratio: 12 / 7;
+  aspect-ratio: 2 / 1;
   padding-block:
     var(--board-top-gutter)
     var(--board-bottom-gutter);
@@ -2031,7 +2031,7 @@ body {
   .canvas-stage {
     width: min(
       calc(100vw - 26px),
-      calc((100dvh - 247px) * 12 / 7)
+      calc((100dvh - 247px) * 2 / 1)
     );
   }
 }
@@ -2072,7 +2072,7 @@ body {
     --board-top-gutter: 44px;
     --board-bottom-gutter: 88px;
     width: 100%;
-    aspect-ratio: 12 / 7;
+    aspect-ratio: 2 / 1;
   }
 
   .game-message {

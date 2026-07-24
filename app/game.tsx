@@ -8,13 +8,13 @@ import {
   useState,
 } from "react";
 
-const COLS = 24;
-const ROWS = 14;
+const COLS = 20;
+const ROWS = 10;
 const CELL = 40;
 const WIDTH = COLS * CELL;
 const HEIGHT = ROWS * CELL;
-const START = { x: 0, y: 6 };
-const CITY = { x: 23, y: 7 };
+const START = { x: 0, y: 4 };
+const CITY = { x: 19, y: 5 };
 
 type Point = { x: number; y: number };
 type TowerKind = "thorn" | "frost" | "boulder" | "lightning";
@@ -1570,7 +1570,7 @@ export default function NatureDefenseGame() {
                 onMouseLeave={() => {
                   hoverRef.current = null;
                 }}
-                aria-label="24 by 14 tower defense game board"
+                aria-label="20 by 10 tower defense game board"
               />
 
               {waveAnnouncement ? (

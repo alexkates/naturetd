@@ -1033,6 +1033,20 @@ body {
   background: #ffe78b;
 }
 
+.rush-control {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.rush-explainer {
+  color: #725027;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 .rush-button kbd {
   width: auto;
   padding: 0 5px;
@@ -2111,6 +2125,22 @@ body {
 
   .rush-button {
     margin-right: auto;
+  }
+
+  .rush-control {
+    margin-right: auto;
+    justify-items: start;
+  }
+
+  .rush-button {
+    margin-right: 0;
+  }
+
+  .rush-explainer {
+    max-width: 190px;
+    overflow: hidden;
+    font-size: 8px;
+    text-overflow: ellipsis;
   }
 
   .guardian-dock button {

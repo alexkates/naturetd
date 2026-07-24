@@ -1446,8 +1446,9 @@ export default function NatureDefenseGame() {
                       ? `Build window · ${Math.ceil(game.nextWaveIn)}s`
                       : `Next Blight · ${Math.ceil(game.nextWaveIn)}s`}
               </span>
-              <button
-                className={`rush-button ${rushWindow > 0 ? "chain-active" : ""}`}
+              <div className="rush-control">
+                <button
+                  className={`rush-button ${rushWindow > 0 ? "chain-active" : ""}`}
                 onClick={startWave}
                 disabled={game.phase === "gameover"}
                 aria-label={
@@ -1463,7 +1464,11 @@ export default function NatureDefenseGame() {
               >
                 {rushWindow > 0 ? `Chain ×${nextRushStreak}` : `Wave ${formatNumber(game.wave + 1)}`}
                 {" "}· +{formatNumber(rushBonus)} <kbd>Space</kbd>
-              </button>
+                </button>
+                <span className="rush-explainer">
+                  Rush again within 4s: +25% gold · up to 2.5×
+                </span>
+              </div>
               <div className="speed-controls">
                 <button
                   className={game.speed === 1 ? "active" : ""}
@@ -1781,8 +1786,9 @@ export default function NatureDefenseGame() {
                 <h3>Beat the clock</h3>
                 <p>
                   A mixed wave arrives every 30 seconds. Press Space to call it
-                  early and earn the displayed gold bonus. Blightlings always
-                  find a shortest open route.
+                  early and earn the displayed gold bonus. Rush again within
+                  four seconds to add 25% to the multiplier, up to 2.5× gold.
+                  Blightlings always find a shortest open route.
                 </p>
               </div>
               <div>

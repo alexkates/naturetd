@@ -2215,7 +2215,7 @@ body {
 
   .canvas-stage {
     --board-top-gutter: 56px;
-    --board-bottom-gutter: 104px;
+    --board-bottom-gutter: 174px;
     width: 100%;
     aspect-ratio: 2 / 1;
   }
@@ -2229,9 +2229,14 @@ body {
   }
 
   .guardian-dock {
-    bottom: calc(var(--board-bottom-gutter) / 2);
+    right: 14px;
+    bottom: 62px;
     left: 12px;
-    transform: translateY(50%);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding: 10px;
+    transform: none;
   }
 
   .dock-label {
@@ -2239,17 +2244,19 @@ body {
   }
 
   .guardian-dock button {
-    width: 138px;
-    min-width: 138px;
-    height: 72px;
+    width: 100%;
+    min-width: 0;
+    height: 88px;
+    gap: 11px;
+    padding: 10px 12px;
   }
 
   .hotkey-strip {
     right: 12px;
-    bottom: calc(var(--board-bottom-gutter) / 2);
+    bottom: 12px;
     left: auto;
     padding: 8px;
-    transform: translateY(50%);
+    transform: none;
   }
 
   .hotkey-strip > span {

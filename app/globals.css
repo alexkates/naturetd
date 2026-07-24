@@ -1412,6 +1412,150 @@ body {
   width: 100%;
 }
 
+.replay-intro-button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  border: 0;
+  color: #725685;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.intro-backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  padding: 22px;
+  background: rgba(34, 21, 42, 0.54);
+  backdrop-filter: blur(3px);
+}
+
+.intro-card {
+  position: absolute;
+  width: min(440px, calc(100% - 44px));
+  padding: 24px;
+  border: 2px solid #795293;
+  border-radius: 20px;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top right, rgba(223, 241, 135, 0.55), transparent 42%),
+    linear-gradient(145deg, #fffaf0, #f3e8fb);
+  box-shadow: 0 28px 80px rgba(22, 12, 28, 0.5);
+}
+
+.intro-story .intro-card {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.intro-board .intro-card {
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
+}
+
+.intro-health .intro-card {
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.intro-guardians .intro-card {
+  top: 100px;
+  right: 24px;
+}
+
+.intro-actions .intro-card {
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.intro-skip {
+  position: absolute;
+  top: 15px;
+  right: 16px;
+  padding: 5px 7px;
+  border: 0;
+  color: #725f7c;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.intro-progress {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 22px;
+}
+
+.intro-progress span {
+  width: 18px;
+  height: 4px;
+  border-radius: 999px;
+  background: #d8c8e1;
+}
+
+.intro-progress span.active {
+  width: 34px;
+  background: #7f5b96;
+}
+
+.intro-card > .eyebrow {
+  margin-bottom: 5px;
+}
+
+.intro-card h2 {
+  max-width: 360px;
+  margin: 0 0 10px;
+  font-size: clamp(25px, 3.3vw, 38px);
+  line-height: 1.03;
+}
+
+.intro-copy {
+  margin: 0;
+  color: #6f6078;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.intro-actions {
+  display: grid;
+  grid-template-columns: 82px 1fr minmax(100px, auto);
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.intro-actions > button {
+  min-height: 38px;
+  border: 1px solid #c8b2d5;
+  border-radius: 9px;
+  color: #5c426c;
+  background: #f4e9fb;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.intro-actions > button:disabled {
+  opacity: 0.35;
+}
+
+.intro-actions > span {
+  color: #887590;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 9px;
+  text-align: center;
+}
+
+.intro-actions > .primary-action {
+  min-height: 38px;
+  box-shadow: 0 4px 0 rgba(99, 66, 119, 0.22);
+}
+
 @media (max-width: 1250px) {
   .hud-topbar {
     grid-template-columns: auto 1fr;
@@ -1510,6 +1654,17 @@ body {
   .help-grid,
   .help-hotkeys {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .intro-board .intro-card,
+  .intro-health .intro-card,
+  .intro-guardians .intro-card,
+  .intro-actions .intro-card {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    transform: translate(-50%, -50%);
   }
 }
 

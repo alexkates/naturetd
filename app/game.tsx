@@ -185,6 +185,39 @@ const TOWER_DATA: Record<
 };
 
 const TOWER_ORDER = Object.keys(TOWER_DATA) as TowerKind[];
+const INTRO_STORAGE_KEY = "nature-defense-intro-v1";
+const INTRO_STEPS = [
+  {
+    id: "story",
+    label: "The story",
+    title: "Nature makes its last stand",
+    body: "The Blight is stampeding toward the Heartwood. Shape a living maze and let your animal guardians cleanse every creature before it reaches the grove.",
+  },
+  {
+    id: "board",
+    label: "The board",
+    title: "Bend the shortest path",
+    body: "Guardians occupy grass tiles and force Blightlings to reroute in four directions. You may twist the route, but the game will reject any build that seals it completely.",
+  },
+  {
+    id: "health",
+    label: "Heartwood health",
+    title: "Protect all 20 life",
+    body: "The top bar tracks gold, Heartwood health, wave, kills, and cleansing damage. Creatures that reach the Heartwood drain life; lose it all and the run ends.",
+  },
+  {
+    id: "guardians",
+    label: "Your towers",
+    title: "Plant a guardian maze",
+    body: "Press 1–4 to choose a guardian, hover to preview its range, then click grass to plant it. Each guardian costs gold and brings a different attack style.",
+  },
+  {
+    id: "actions",
+    label: "Live controls",
+    title: "Build while the Blight moves",
+    body: "A wave arrives every 30 seconds. Space calls it early for bonus gold. Select a guardian and press M to move it, or press S between waves to sell it for a full refund.",
+  },
+] as const;
 const keyOf = (x: number, y: number) => `${x},${y}`;
 
 function mulberry32(seed: number) {
@@ -389,6 +422,7 @@ export default function NatureDefenseGame() {
   const selectedCellRef = useRef<Point | null>(null);
   const movingCellRef = useRef<Point | null>(null);
   const helpPausedRef = useRef(false);
+  const introPausedRef = useRef(false);
   const frameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const [, setRevision] = useState(0);
@@ -396,6 +430,8 @@ export default function NatureDefenseGame() {
   const [selectedCell, setSelectedCell] = useState<Point | null>(null);
   const [movingCell, setMovingCell] = useState<Point | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
+  const [introStep, setIntroStep] = useState(0);
 
   const refresh = useCallback(() => setRevision((revision) => revision + 1), []);
 
@@ -1147,9 +1183,63 @@ export default function NatureDefenseGame() {
     refresh();
   }, [refresh]);
 
+  const openIntro = useCallback(() => {
+    const game = gameRef.current;
+    introPausedRef.current = helpOpen ? helpPausedRef.current : game.paused;
+    game.paused = true;
+    setHelpOpen(false);
+    setIntroStep(0);
+    setIntroOpen(true);
+    refresh();
+  }, [helpOpen, refresh]);
+
+  const closeIntro = useCallback(() => {
+    try {
+      localStorage.setItem(INTRO_STORAGE_KEY, "seen");
+    } catch {
+      // The tour still works when browser storage is unavailable.
+    }
+    gameRef.current.paused = introPausedRef.current;
+    setIntroOpen(false);
+    refresh();
+  }, [refresh]);
+
+  const nextIntroStep = useCallback(() => {
+    if (introStep >= INTRO_STEPS.length - 1) {
+      closeIntro();
+      return;
+    }
+    setIntroStep(introStep + 1);
+  }, [closeIntro, introStep]);
+
+  useEffect(() => {
+    let seen = false;
+    try {
+      seen = localStorage.getItem(INTRO_STORAGE_KEY) === "seen";
+    } catch {
+      seen = false;
+    }
+    if (seen) return;
+    const game = gameRef.current;
+    introPausedRef.current = game.paused;
+    game.paused = true;
+    setIntroStep(0);
+    setIntroOpen(true);
+    refresh();
+  }, [refresh]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
+      if (introOpen) {
+        if (event.key === "Escape") closeIntro();
+        else if (event.key === "ArrowLeft") {
+          setIntroStep((step) => Math.max(0, step - 1));
+        } else if (event.key === "ArrowRight" || event.key === "Enter") {
+          nextIntroStep();
+        }
+        return;
+      }
       if (helpOpen) {
         if (
           event.key === "Escape" ||
@@ -1191,7 +1281,7 @@ export default function NatureDefenseGame() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelMove, closeHelp, helpOpen, moveSelected, openHelp, requestRestart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
+  }, [cancelMove, closeHelp, closeIntro, helpOpen, introOpen, moveSelected, nextIntroStep, openHelp, requestRestart, selectTower, sellSelected, setSpeed, startWave, togglePause]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
@@ -1523,9 +1613,50 @@ export default function NatureDefenseGame() {
             <button className="primary-action" onClick={closeHelp}>
               Back to the grove
             </button>
+            <button className="replay-intro-button" onClick={openIntro}>
+              Replay guided intro
+            </button>
           </section>
         </div>
       )}
+
+      {introOpen ? (
+        <div className={`intro-backdrop intro-${INTRO_STEPS[introStep].id}`}>
+          <section
+            className="intro-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="intro-title"
+          >
+            <button className="intro-skip" onClick={closeIntro}>
+              Skip intro
+            </button>
+            <div className="intro-progress" aria-label={`Step ${introStep + 1} of ${INTRO_STEPS.length}`}>
+              {INTRO_STEPS.map((step, index) => (
+                <span
+                  key={step.id}
+                  className={index === introStep ? "active" : ""}
+                />
+              ))}
+            </div>
+            <p className="eyebrow">{INTRO_STEPS[introStep].label}</p>
+            <h2 id="intro-title">{INTRO_STEPS[introStep].title}</h2>
+            <p className="intro-copy">{INTRO_STEPS[introStep].body}</p>
+            <div className="intro-actions">
+              <button
+                onClick={() => setIntroStep((step) => Math.max(0, step - 1))}
+                disabled={introStep === 0}
+              >
+                Back
+              </button>
+              <span>{introStep + 1} / {INTRO_STEPS.length}</span>
+              <button className="primary-action" onClick={nextIntroStep} autoFocus>
+                {introStep === INTRO_STEPS.length - 1 ? "Defend the grove" : "Next"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

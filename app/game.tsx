@@ -39,6 +39,67 @@ type BuffKind =
   | "verdantMercy";
 type Phase = "intermission" | "wave" | "gameover";
 
+type SavedTower = {
+  x: number;
+  y: number;
+  kind: TowerKind;
+  level: number;
+  kills: number;
+  damageDone: number;
+};
+
+type RunStats = {
+  kills: number;
+  damage: number;
+  goldEarned: number;
+  goldSpent: number;
+  towersBuilt: number;
+  towerUpgrades: number;
+  bossesDefeated: number;
+  battleTime: number;
+  spellsCast: number;
+  wavesRushed: number;
+  rushGold: number;
+  timeSaved: number;
+};
+
+type LeaderboardRun = {
+  id: string;
+  name: string;
+  playedAt: string;
+  wave: number;
+  seed: number;
+  towers: SavedTower[];
+  buffs: BuffKind[];
+  stats: RunStats;
+};
+
+const LEADERBOARD_STORAGE_KEY = "nature-defense-leaderboard-v1";
+const PLAYER_NAME_STORAGE_KEY = "nature-defense-player-name";
+const MAX_LEADERBOARD_RUNS = 10;
+
+function compareRuns(a: LeaderboardRun, b: LeaderboardRun) {
+  return (
+    b.wave - a.wave ||
+    b.stats.kills - a.stats.kills ||
+    b.stats.damage - a.stats.damage ||
+    a.stats.battleTime - b.stats.battleTime
+  );
+}
+
+function readLeaderboard(): LeaderboardRun[] {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(LEADERBOARD_STORAGE_KEY) ?? "[]",
+    );
+    return Array.isArray(parsed)
+      ? (parsed as LeaderboardRun[]).sort(compareRuns).slice(0, MAX_LEADERBOARD_RUNS)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 type Tower = {
   kind: TowerKind;
   level: number;
@@ -741,6 +802,102 @@ function invaderImagePath(invader: Invader) {
   return `/assets/blight/${invader.file}`;
 }
 
+function RunDetails({ run }: { run: LeaderboardRun }) {
+  const towers = new Map(run.towers.map((tower) => [keyOf(tower.x, tower.y), tower]));
+  const buffRanks = new Map<BuffKind, number>();
+  for (const buff of run.buffs) {
+    buffRanks.set(buff, (buffRanks.get(buff) ?? 0) + 1);
+  }
+
+  return (
+    <article className="run-details">
+      <header>
+        <div>
+          <span>Wave {formatNumber(run.wave)}</span>
+          <h3>{run.name}&apos;s build</h3>
+        </div>
+        <small>
+          {new Date(run.playedAt).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })} · seed {run.seed}
+        </small>
+      </header>
+      <div className="saved-board" aria-label="Final guardian board layout">
+        {Array.from({ length: ROWS * COLS }, (_, index) => {
+          const x = index % COLS;
+          const y = Math.floor(index / COLS);
+          const tower = towers.get(keyOf(x, y));
+          const endpoint =
+            x === START.x && y === START.y
+              ? "rift"
+              : x === CITY.x && y === CITY.y
+                ? "heartwood"
+                : "";
+          return (
+            <div
+              key={index}
+              className={`saved-board-cell ${tower ? "tower" : ""} ${endpoint}`}
+              title={
+                tower
+                  ? `${TOWER_DATA[tower.kind].name}, level ${tower.level}, ${formatNumber(tower.kills)} cleared`
+                  : endpoint || undefined
+              }
+              style={
+                tower
+                  ? { "--tower-color": TOWER_DATA[tower.kind].color } as React.CSSProperties
+                  : undefined
+              }
+            >
+              {tower ? (
+                <>
+                  <img src={TOWER_DATA[tower.kind].image} alt="" />
+                  <b>{tower.level}</b>
+                </>
+              ) : endpoint === "rift" ? "✦" : endpoint === "heartwood" ? "♥" : null}
+            </div>
+          );
+        })}
+      </div>
+      <div className="saved-build-section">
+        <strong>Rogue cards</strong>
+        {buffRanks.size ? (
+          <div className="saved-buffs">
+            {[...buffRanks].map(([kind, rank]) => (
+              <span
+                key={kind}
+                style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
+                title={BUFF_DATA[kind].description}
+              >
+                <b>{BUFF_DATA[kind].icon}</b>
+                {BUFF_DATA[kind].name}
+                {rank > 1 ? ` ×${rank}` : ""}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p>No blessings collected.</p>
+        )}
+      </div>
+      <div className="saved-run-stats">
+        <span><small>Cleared</small><strong>{formatNumber(run.stats.kills)}</strong></span>
+        <span><small>Damage</small><strong>{formatNumber(run.stats.damage)}</strong></span>
+        <span><small>Battle time</small><strong>{formatDuration(run.stats.battleTime)}</strong></span>
+        <span><small>Gold earned</small><strong>{formatNumber(run.stats.goldEarned)}</strong></span>
+        <span><small>Gold spent</small><strong>{formatNumber(run.stats.goldSpent)}</strong></span>
+        <span><small>Guardians</small><strong>{formatNumber(run.stats.towersBuilt)}</strong></span>
+        <span><small>Upgrades</small><strong>{formatNumber(run.stats.towerUpgrades)}</strong></span>
+        <span><small>Bosses</small><strong>{formatNumber(run.stats.bossesDefeated)}</strong></span>
+        <span><small>Spells</small><strong>{formatNumber(run.stats.spellsCast)}</strong></span>
+        <span><small>Waves rushed</small><strong>{formatNumber(run.stats.wavesRushed)}</strong></span>
+        <span><small>Rush gold</small><strong>{formatNumber(run.stats.rushGold)}</strong></span>
+        <span><small>Time saved</small><strong>{formatDuration(run.stats.timeSaved)}</strong></span>
+      </div>
+    </article>
+  );
+}
+
 export default function NatureDefenseGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -765,6 +922,20 @@ export default function NatureDefenseGame() {
   const [movingCell, setMovingCell] = useState<Point | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardRun[]>(() =>
+    typeof window === "undefined" ? [] : readLeaderboard(),
+  );
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [playerName, setPlayerName] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return localStorage.getItem(PLAYER_NAME_STORAGE_KEY) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [runSubmitted, setRunSubmitted] = useState(false);
   const [introStep, setIntroStep] = useState(0);
   const [introHighlight, setIntroHighlight] = useState<{
     top: number;
@@ -842,6 +1013,62 @@ export default function NatureDefenseGame() {
       // Local storage is optional; the run remains fully playable without it.
     }
   }, [refresh]);
+
+  const saveRun = useCallback(
+    (event: React.FormEvent) => {
+      event.preventDefault();
+      const name = playerName.trim();
+      if (!name || runSubmitted) return;
+      const game = gameRef.current;
+      const run: LeaderboardRun = {
+        id: `${Date.now()}-${game.seed}`,
+        name: name.slice(0, 24),
+        playedAt: new Date().toISOString(),
+        wave: game.wave,
+        seed: game.seed,
+        towers: [...game.towers.entries()].map(([key, tower]) => {
+          const [x, y] = key.split(",").map(Number);
+          return {
+            x,
+            y,
+            kind: tower.kind,
+            level: tower.level,
+            kills: tower.kills,
+            damageDone: tower.damageDone,
+          };
+        }),
+        buffs: [...game.buffs],
+        stats: {
+          kills: game.kills,
+          damage: game.damage,
+          goldEarned: game.goldEarned,
+          goldSpent: game.goldSpent,
+          towersBuilt: game.towersBuilt,
+          towerUpgrades: game.towerUpgrades,
+          bossesDefeated: game.bossesDefeated,
+          battleTime: game.realElapsed,
+          spellsCast: game.spellsCast,
+          wavesRushed: game.wavesRushed,
+          rushGold: game.rushGold,
+          timeSaved: game.timeSaved,
+        },
+      };
+      const next = [...leaderboard, run]
+        .sort(compareRuns)
+        .slice(0, MAX_LEADERBOARD_RUNS);
+      try {
+        localStorage.setItem(PLAYER_NAME_STORAGE_KEY, run.name);
+        localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Keep the leaderboard available for this session when storage is blocked.
+      }
+      setPlayerName(run.name);
+      setLeaderboard(next);
+      setSelectedRunId(run.id);
+      setRunSubmitted(true);
+    },
+    [leaderboard, playerName, runSubmitted],
+  );
 
   const damageEnemy = useCallback(
     (game: Game, enemy: Enemy, damageAmount: number, tower: Tower) => {
@@ -1999,6 +2226,7 @@ export default function NatureDefenseGame() {
     setSelectedCell(null);
     setSelectedSpell(null);
     setSelectedKind("thorn");
+    setRunSubmitted(false);
     lastTimeRef.current = 0;
     refresh();
   }, [refresh]);
@@ -2183,6 +2411,8 @@ export default function NatureDefenseGame() {
     game.waveAnnouncement && game.waveAnnouncement.expiresAt > Date.now()
       ? game.waveAnnouncement
       : null;
+  const selectedLeaderboardRun =
+    leaderboard.find((run) => run.id === selectedRunId) ?? leaderboard[0] ?? null;
 
   return (
     <main className="game-shell">
@@ -2284,6 +2514,13 @@ export default function NatureDefenseGame() {
                 aria-label="Open game help"
               >
                 ? <span>Help</span>
+              </button>
+              <button
+                className="leaderboard-button"
+                onClick={() => setLeaderboardOpen(true)}
+                aria-label="Open leaderboard"
+              >
+                ♛ <span>Top 10</span>
               </button>
               <button
                 className="restart-button"
@@ -2544,9 +2781,38 @@ export default function NatureDefenseGame() {
                       )}
                     </div>
 
-                    <button className="primary-action" onClick={restart}>
-                      Grow another last stand
-                    </button>
+                    {!runSubmitted ? (
+                      <form className="run-name-form" onSubmit={saveRun}>
+                        <label htmlFor="run-player-name">Add this run to the grove legends</label>
+                        <div>
+                          <input
+                            id="run-player-name"
+                            value={playerName}
+                            onChange={(event) => setPlayerName(event.target.value)}
+                            placeholder="Your name"
+                            maxLength={24}
+                            autoFocus
+                            required
+                          />
+                          <button className="primary-action" type="submit">
+                            Save run
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="saved-run-actions">
+                        <p>Run saved for <strong>{playerName}</strong>.</p>
+                        <button
+                          type="button"
+                          onClick={() => setLeaderboardOpen(true)}
+                        >
+                          View leaderboard
+                        </button>
+                        <button className="primary-action" onClick={restart}>
+                          Grow another last stand
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2666,6 +2932,60 @@ export default function NatureDefenseGame() {
         </div>
       </section>
 
+      {leaderboardOpen && (
+        <div
+          className="help-backdrop"
+          role="presentation"
+          onMouseDown={() => setLeaderboardOpen(false)}
+        >
+          <section
+            className="leaderboard-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leaderboard-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              className="help-close"
+              onClick={() => setLeaderboardOpen(false)}
+              aria-label="Close leaderboard"
+            >
+              ×
+            </button>
+            <p className="eyebrow">Grove legends</p>
+            <h2 id="leaderboard-title">Top 10 last stands</h2>
+            {leaderboard.length ? (
+              <div className="leaderboard-layout">
+                <ol className="leaderboard-list">
+                  {leaderboard.map((run, index) => (
+                    <li key={run.id}>
+                      <button
+                        className={selectedLeaderboardRun?.id === run.id ? "selected" : ""}
+                        onClick={() => setSelectedRunId(run.id)}
+                      >
+                        <span>{index + 1}</span>
+                        <strong>{run.name}</strong>
+                        <b>Wave {formatNumber(run.wave)}</b>
+                        <small>{formatNumber(run.stats.kills)} cleared</small>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+                {selectedLeaderboardRun && (
+                  <RunDetails run={selectedLeaderboardRun} />
+                )}
+              </div>
+            ) : (
+              <div className="leaderboard-empty">
+                <span aria-hidden="true">♛</span>
+                <strong>No legends yet</strong>
+                <p>Finish a run to claim the first place.</p>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
       {helpOpen && (
         <div className="help-backdrop" role="presentation" onMouseDown={closeHelp}>
           <section
@@ -2715,7 +3035,7 @@ export default function NatureDefenseGame() {
                 <p>
                   Chickadees fire quickly, foxes slow, boars cleanse groups,
                   and wolves chain spirit sparks. Levels increase damage and
-                  attack speed while strengthening each guardian's specialty.
+                  attack speed while strengthening each guardian&apos;s specialty.
                 </p>
               </div>
               <div>
@@ -2723,7 +3043,7 @@ export default function NatureDefenseGame() {
                 <p>
                   Every Grime King drops three permanent tower mutations. Pick
                   one card to shape the run; your collected Grove build stays
-                  visible in the board's bottom-right corner.
+                  visible in the board&apos;s bottom-right corner.
                 </p>
               </div>
               <div>

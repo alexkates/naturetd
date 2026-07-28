@@ -2521,13 +2521,7 @@ export default function NatureDefenseGame({
             <div ref={hudActionsRef} className="hud-actions">
               <span className={`phase-pill ${game.phase}`}>
                 <b>Wave {formatNumber(game.wave)}</b>
-                {game.phase === "gameover"
-                  ? "Wilted"
-                  : game.paused
-                    ? "Paused"
-                    : game.phase === "intermission"
-                      ? `Build ${Math.ceil(game.nextWaveIn)}s`
-                      : "Blight"}
+                {game.phase === "gameover" ? "Wilted" : game.paused ? "Paused" : null}
               </span>
               <div className="rush-control" title="Rush again within 4s for +25% gold, up to 2.5×">
                 <button

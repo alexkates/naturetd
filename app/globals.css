@@ -142,7 +142,7 @@ h2 {
   font-weight: 800;
 }
 
-.phase-pill b::after {
+.phase-pill b:not(:only-child)::after {
   color: var(--muted);
   content: " ·";
 }

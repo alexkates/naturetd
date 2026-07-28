@@ -5,9 +5,9 @@ Next.js 16 (App Router) game client backed by Supabase for auth and persistence.
 ## Layout
 
 - `app/` — routes and UI
-  - `page.tsx` / `game.tsx` — the game itself
+  - `page.tsx` / `game.tsx` — the game itself, including the profile modal
+    (leaderboard display-name management, opened from the account chip)
   - `login/`, `auth/callback/` — passwordless magic-link sign-in flow
-  - `profile/` — leaderboard display-name management (`profile-form.tsx`)
   - `actions.ts` — server actions (auth, save/leaderboard writes)
   - `globals.css`, `design-tokens.css` — styling; no CSS framework beyond Tailwind v4 (postcss plugin)
 - `lib/`

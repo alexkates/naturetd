@@ -1,16 +1,20 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  useTransition,
 } from "react";
 
 import {
   fetchLeaderboard,
+  saveDisplayName,
   saveGameState,
+  signOut,
   submitRun,
 } from "@/app/actions";
 import type {
@@ -947,6 +951,7 @@ function RunDetails({ run }: { run: LeaderboardRun }) {
 
 type GameProps = {
   displayName: string;
+  isNewProfile: boolean;
   email: string;
   savedGame: GameSaveState | null;
   initialLeaderboard: LeaderboardRun[];
@@ -954,12 +959,14 @@ type GameProps = {
 };
 
 export default function NatureDefenseGame({
-  displayName,
+  displayName: initialDisplayName,
+  isNewProfile,
   email,
   savedGame,
   initialLeaderboard,
   bestWave,
 }: GameProps) {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const healthRef = useRef<HTMLDivElement>(null);
@@ -990,6 +997,12 @@ export default function NatureDefenseGame({
   const [helpOpen, setHelpOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(isNewProfile);
+  const [displayName, setDisplayName] = useState(initialDisplayName);
+  const [nameDraft, setNameDraft] = useState(initialDisplayName);
+  const [nameError, setNameError] = useState("");
+  const [nameSaved, setNameSaved] = useState(false);
+  const [profilePending, startProfileTransition] = useTransition();
   const [groveBuildOpen, setGroveBuildOpen] = useState(false);
   const [leaderboard, setLeaderboard] =
     useState<LeaderboardRun[]>(initialLeaderboard);
@@ -2410,6 +2423,10 @@ export default function NatureDefenseGame({
         }
         return;
       }
+      if (profileOpen) {
+        if (event.key === "Escape" && !isNewProfile) setProfileOpen(false);
+        return;
+      }
       if (gameRef.current.pendingBuffChoices) return;
       if (event.shiftKey && /^Digit[1-4]$/.test(event.code)) {
         event.preventDefault();
@@ -2447,7 +2464,7 @@ export default function NatureDefenseGame({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelMove, cancelSpell, closeHelp, closeIntro, helpOpen, introOpen, moveSelected, nextIntroStep, openHelp, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected]);
+  }, [cancelMove, cancelSpell, closeHelp, closeIntro, helpOpen, introOpen, isNewProfile, moveSelected, nextIntroStep, openHelp, profileOpen, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
@@ -2588,9 +2605,10 @@ export default function NatureDefenseGame({
                   ↻
                 </button>
               </div>
-              <a
+              <button
+                type="button"
                 className="account-chip"
-                href="/profile"
+                onClick={() => setProfileOpen(true)}
                 title={`Signed in as ${email}`}
               >
                 <span aria-hidden="true">✿</span>
@@ -2600,7 +2618,7 @@ export default function NatureDefenseGame({
                     !
                   </em>
                 ) : null}
-              </a>
+              </button>
             </div>
           </header>
 
@@ -3138,6 +3156,110 @@ export default function NatureDefenseGame({
             <button className="replay-intro-button" onClick={openIntro}>
               Replay guided intro
             </button>
+          </section>
+        </div>
+      )}
+
+      {profileOpen && (
+        <div
+          className="help-backdrop"
+          role="presentation"
+          onMouseDown={() => {
+            if (!isNewProfile) setProfileOpen(false);
+          }}
+        >
+          <section
+            className="help-modal profile-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <p className="eyebrow">Guardian profile</p>
+            <h2 id="profile-title">
+              {isNewProfile ? "Claim your grove name" : "Your grove name"}
+            </h2>
+            <p className="auth-copy">
+              {isNewProfile
+                ? "Every last stand is recorded under this name — pick it before your first run."
+                : "Change the name that appears on the leaderboard. Past runs update too."}
+            </p>
+            <form
+              className="auth-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setNameError("");
+                setNameSaved(false);
+                startProfileTransition(async () => {
+                  const result = await saveDisplayName(nameDraft);
+                  if (!result.ok) {
+                    setNameError(result.error);
+                    return;
+                  }
+                  setDisplayName(nameDraft);
+                  setNameSaved(true);
+                  if (isNewProfile) setProfileOpen(false);
+                });
+              }}
+            >
+              <label htmlFor="display-name">Leaderboard name</label>
+              <input
+                id="display-name"
+                value={nameDraft}
+                onChange={(event) => setNameDraft(event.target.value)}
+                placeholder="Fern Warden"
+                minLength={2}
+                maxLength={24}
+                required
+                autoFocus
+              />
+              <button
+                className="primary-action"
+                type="submit"
+                disabled={profilePending}
+              >
+                {profilePending
+                  ? "Saving…"
+                  : isNewProfile
+                    ? "Enter the grove"
+                    : "Save name"}
+              </button>
+              {nameError ? (
+                <p className="auth-error" role="alert">
+                  {nameError}
+                </p>
+              ) : nameSaved ? (
+                <p className="auth-hint" role="status">
+                  Name saved.
+                </p>
+              ) : (
+                <p className="auth-hint">
+                  This is the name shown on every run you post. 2–24
+                  characters, and it has to be unique.
+                </p>
+              )}
+            </form>
+            <footer className="profile-footer">
+              <span>Signed in as {email}</span>
+              <div>
+                {!isNewProfile && (
+                  <button type="button" onClick={() => setProfileOpen(false)}>
+                    Back to the grove
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    startProfileTransition(async () => {
+                      await signOut();
+                      router.push("/login");
+                    })
+                  }
+                >
+                  Sign out
+                </button>
+              </div>
+            </footer>
           </section>
         </div>
       )}

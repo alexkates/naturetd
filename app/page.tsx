@@ -15,7 +15,6 @@ export default async function Home() {
   if (!user) redirect("/login");
 
   const profile = await getProfile(user.id);
-  if (!profile?.display_name) redirect("/profile");
 
   const [savedGame, leaderboard, bestWave] = await Promise.all([
     getSavedGame(user.id),
@@ -25,7 +24,8 @@ export default async function Home() {
 
   return (
     <NatureDefenseGame
-      displayName={profile.display_name}
+      displayName={profile?.display_name ?? ""}
+      isNewProfile={!profile?.display_name}
       email={user.email ?? ""}
       savedGame={savedGame}
       initialLeaderboard={leaderboard}

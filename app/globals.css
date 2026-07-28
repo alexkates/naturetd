@@ -1098,6 +1098,10 @@ body {
   width: 100%;
 }
 
+.profile-modal {
+  width: min(460px, 100%);
+}
+
 .run-name-form {
   display: grid;
   gap: 7px;

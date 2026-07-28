@@ -423,6 +423,9 @@ const BUFF_DATA: Record<BuffKind, {
   },
 };
 const BUFF_ORDER = Object.keys(BUFF_DATA) as BuffKind[];
+function buffFamilyLabel(kind: BuffKind) {
+  return BUFF_DATA[kind].family.replace(/\s+(mutation|blessing)$/i, "");
+}
 const NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
 const INTRO_STORAGE_KEY = "nature-defense-intro-v1";
 const INTRO_STEPS = [
@@ -913,7 +916,7 @@ function RunDetails({ run }: { run: LeaderboardRun }) {
                       {BUFF_DATA[kind].name}
                       {rank > 1 ? ` ×${rank}` : ""}
                     </strong>
-                    <small>{BUFF_DATA[kind].family}</small>
+                    <small>{buffFamilyLabel(kind)}</small>
                   </div>
                 </header>
                 <p>{BUFF_DATA[kind].description}</p>
@@ -3049,7 +3052,7 @@ export default function NatureDefenseGame({
                           {BUFF_DATA[kind].name}
                           {rank > 1 ? ` ×${rank}` : ""}
                         </strong>
-                        <small>{BUFF_DATA[kind].family}</small>
+                        <small>{buffFamilyLabel(kind)}</small>
                       </div>
                     </header>
                     <p>{BUFF_DATA[kind].description}</p>

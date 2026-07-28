@@ -1978,15 +1978,21 @@ body {
 }
 
 .saved-buff-card strong {
+  overflow: hidden;
   font-size: var(--font-size-micro);
   font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .saved-buff-card header small {
+  overflow: hidden;
   color: #8a7892;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .saved-buff-card > p {

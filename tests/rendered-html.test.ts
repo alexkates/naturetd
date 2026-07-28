@@ -37,11 +37,10 @@ test("renders the playable Nature's Last Stand shell", async () => {
 
   const html = await response.text();
   expect(html).toMatch(/<title>Nature&#x27;s Last Stand<\/title>/i);
-  expect(html).toContain("Endless maze defense");
   expect(html).toContain("Guardian build shortcuts");
   expect(html).toContain("Wave 1");
-  expect(html).toContain("Cleansing");
-  expect(html).toContain("Restart");
+  expect(html).toContain("cleansing");
+  expect(html).toContain("Restart the current run");
   expect(html).toContain("Chickadee Bramble");
   expect(html).not.toMatch(/codex-preview|react-loading-skeleton/i);
 });

@@ -3770,3 +3770,187 @@ body {
     grid-template-rows: 188px 188px minmax(130px, 1fr);
   }
 }
+
+/* --- Decluttered HUD --- */
+
+.hud-topbar .brand-lockup h1 {
+  font-size: var(--font-size-title);
+  line-height: 1;
+}
+
+.hud-actions {
+  gap: 10px;
+}
+
+.utility-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 11px;
+  background: rgba(118, 82, 142, 0.09);
+}
+
+.utility-controls button {
+  display: grid;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-size: var(--font-size-control);
+}
+
+.utility-controls button:hover {
+  border-color: #c6aed5;
+  background: #f4e9fb;
+}
+
+.run-ticker {
+  position: absolute;
+  z-index: 8;
+  top: calc(var(--board-top-gutter) / 2);
+  left: 10px;
+  display: flex;
+  gap: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: rgba(68, 50, 80, 0.72);
+  background: rgba(255, 250, 240, 0.68);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: var(--font-size-micro);
+  text-transform: uppercase;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Dock cards lost their inline description; the tooltip still carries it. */
+.footer-controls {
+  height: 152px;
+}
+
+.canvas-stage {
+  --board-bottom-gutter: 178px;
+}
+
+.guardian-dock button,
+.spell-dock button {
+  width: clamp(150px, 10vw, 186px);
+  min-width: clamp(150px, 10vw, 186px);
+  height: 62px;
+}
+
+.grove-card {
+  width: 158px;
+  height: 62px;
+  flex: 0 0 158px;
+  grid-template-rows: auto;
+  margin-right: -118px;
+  padding: 9px 11px;
+}
+
+.grove-card > strong {
+  align-self: center;
+}
+
+@media (max-width: 850px) {
+  .footer-controls {
+    height: 316px;
+    grid-template-rows: 84px 84px minmax(120px, 1fr);
+  }
+
+  .canvas-stage {
+    --board-bottom-gutter: 344px;
+  }
+}
+
+@media (max-width: 640px) {
+  .footer-controls {
+    height: 480px;
+    grid-template-rows: 170px 170px minmax(120px, 1fr);
+  }
+
+  .canvas-stage {
+    --board-bottom-gutter: 508px;
+  }
+}
+
+/* Docks share the board width instead of overflowing it. */
+.footer-controls {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.footer-controls .guardian-dock,
+.footer-controls .spell-dock {
+  width: 100%;
+  max-width: 100%;
+}
+
+.footer-controls .guardian-dock button,
+.footer-controls .spell-dock button {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.footer-controls .buff-build {
+  max-width: 34%;
+}
+
+.dock-art,
+.spell-icon {
+  flex-shrink: 0;
+}
+
+.footer-controls .dock-copy strong,
+.footer-controls .spell-copy strong {
+  overflow: hidden;
+  font-size: var(--font-size-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phase-pill,
+.rush-button {
+  white-space: nowrap;
+}
+
+.footer-controls .dock-copy small,
+.footer-controls .spell-copy small {
+  overflow: hidden;
+  font-size: var(--font-size-fine);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-topbar {
+  grid-template-columns: auto minmax(280px, 1fr) auto;
+  gap: 10px;
+}
+
+.hud-topbar .resource-bar {
+  max-width: 420px;
+}
+
+.footer-controls .dock-copy strong,
+.footer-controls .spell-copy strong {
+  overflow: visible;
+  line-height: 1.15;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.footer-controls .spell-icon {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  font-size: var(--font-size-body-sm);
+}
+
+.footer-controls .spell-copy small {
+  font-size: var(--font-size-micro);
+}

@@ -2012,7 +2012,9 @@ export default function NatureDefenseGame() {
         return;
       }
       if (game.towers.has(key)) {
-        setSelectedCell(point);
+        setSelectedCell((current) =>
+          current && current.x === point.x && current.y === point.y ? null : point,
+        );
         return;
       }
       if (game.phase === "gameover") {
@@ -2414,6 +2416,14 @@ export default function NatureDefenseGame() {
   const selectedLeaderboardRun =
     leaderboard.find((run) => run.id === selectedRunId) ?? leaderboard[0] ?? null;
 
+  const boardMessage = selectedSpell
+    ? `${SPELL_DATA[selectedSpell].name} armed — click the field to cast or press Esc to cancel.`
+    : movingCell
+      ? `Moving ${TOWER_DATA[selectedKind].name} — click open grass or press Esc to cancel.`
+      : game.messageUntil > game.elapsed
+        ? game.message
+        : null;
+
   return (
     <main className="game-shell">
       <section className="game-surface">
@@ -2421,10 +2431,7 @@ export default function NatureDefenseGame() {
           <header className="hud-topbar">
             <div className="brand-lockup">
               <div className="brand-mark">ND</div>
-              <div>
-                <p className="eyebrow">Endless maze defense</p>
-                <h1>Nature&apos;s Last Stand</h1>
-              </div>
+              <h1>Nature&apos;s Last Stand</h1>
             </div>
 
             <div className="resource-bar" aria-label="Current run statistics">
@@ -2442,27 +2449,19 @@ export default function NatureDefenseGame() {
                 <span>Wave</span>
                 <strong>{formatNumber(game.wave)}</strong>
               </div>
-              <div className="resource desktop-stat">
-                <span>Cleared</span>
-                <strong>{formatNumber(game.kills)}</strong>
-              </div>
-              <div className="resource desktop-stat">
-                <span>Cleansing</span>
-                <strong>{formatNumber(game.damage)}</strong>
-              </div>
             </div>
 
             <div ref={hudActionsRef} className="hud-actions">
               <span className={`phase-pill ${game.phase}`}>
                 {game.phase === "gameover"
-                  ? "Heartwood wilted"
+                  ? "Wilted"
                   : game.paused
                     ? "Paused"
                     : game.phase === "intermission"
-                      ? `Build window · ${Math.ceil(game.nextWaveIn)}s`
-                      : `Next Blight · ${Math.ceil(game.nextWaveIn)}s`}
+                      ? `Build · ${Math.ceil(game.nextWaveIn)}s`
+                      : `Blight · ${Math.ceil(game.nextWaveIn)}s`}
               </span>
-              <div className="rush-control">
+              <div className="rush-control" title="Rush again within 4s for +25% gold, up to 2.5×">
                 <button
                   className={`rush-button ${rushWindow > 0 ? "chain-active" : ""}`}
                 onClick={startWave}
@@ -2481,9 +2480,6 @@ export default function NatureDefenseGame() {
                 {rushWindow > 0 ? `Chain ×${nextRushStreak}` : `Wave ${formatNumber(game.wave + 1)}`}
                 {" "}· +{formatNumber(rushBonus)} <kbd>Space</kbd>
                 </button>
-                <span className="rush-explainer">
-                  Rush again within 4s: +25% gold · up to 2.5×
-                </span>
               </div>
               <div className="speed-controls">
                 <button
@@ -2508,40 +2504,46 @@ export default function NatureDefenseGame() {
                   {game.paused ? "▶" : "Ⅱ"}
                 </button>
               </div>
-              <button
-                className="help-button"
-                onClick={openHelp}
-                aria-label="Open game help"
-              >
-                ? <span>Help</span>
-              </button>
-              <button
-                className="leaderboard-button"
-                onClick={() => setLeaderboardOpen(true)}
-                aria-label="Open leaderboard"
-              >
-                ♛ <span>Top 10</span>
-              </button>
-              <button
-                className="restart-button"
-                onClick={requestRestart}
-                aria-label="Restart the current run"
-              >
-                ↻ <span>Restart</span>
-              </button>
+              <div className="utility-controls">
+                <button
+                  className="help-button"
+                  onClick={openHelp}
+                  aria-label="Open game help"
+                  title="Help (H)"
+                >
+                  ?
+                </button>
+                <button
+                  className="leaderboard-button"
+                  onClick={() => setLeaderboardOpen(true)}
+                  aria-label="Open leaderboard"
+                  title="Top 10 runs"
+                >
+                  ♛
+                </button>
+                <button
+                  className="restart-button"
+                  onClick={requestRestart}
+                  aria-label="Restart the current run"
+                  title="New run (N)"
+                >
+                  ↻
+                </button>
+              </div>
             </div>
           </header>
 
           <div className="canvas-stage">
-            <div className="game-message" aria-live="polite">
-              <span>✦</span>
-              {selectedSpell
-                ? `${SPELL_DATA[selectedSpell].name} armed — click the field to cast or press Esc to cancel.`
-                : movingCell
-                  ? `Moving ${TOWER_DATA[selectedKind].name} — click open grass or press Esc to cancel.`
-                  : game.messageUntil > game.elapsed
-                ? game.message
-                : `${formatNumber(game.enemies.length + game.waveQueue.length)} Blightlings active · next wave in ${Math.ceil(game.nextWaveIn)}s`}
+            {boardMessage ? (
+              <div className="game-message" aria-live="polite">
+                <span>✦</span>
+                {boardMessage}
+              </div>
+            ) : null}
+
+            <div className="run-ticker" aria-label="Run totals">
+              <span>{formatNumber(game.kills)} cleared</span>
+              <span>{formatNumber(game.damage)} cleansing</span>
             </div>
 
             <div className="wave-peek" aria-label={`Upcoming wave ${game.wave + 1}`}>
@@ -2842,7 +2844,6 @@ export default function NatureDefenseGame() {
                     </span>
                     <span className="dock-copy">
                       <strong>{tower.name}</strong>
-                      <em>{tower.description}</em>
                       <small><kbd>{tower.hotkey}</kbd> · {tower.cost} gold</small>
                     </span>
                     <span
@@ -2882,7 +2883,6 @@ export default function NatureDefenseGame() {
                     <span className="spell-icon" aria-hidden="true">{spell.icon}</span>
                     <span className="spell-copy">
                       <strong>{spell.name}</strong>
-                      <em>{spell.description}</em>
                       <small>
                         <kbd>{spell.hotkey}</kbd>
                         {charges ? `${charges} ready` : `${formatNumber(cost)} gold`}
@@ -2910,6 +2910,7 @@ export default function NatureDefenseGame() {
                           className="grove-card"
                           tabIndex={0}
                           style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
+                          title={`${BUFF_DATA[kind].family} · ${BUFF_DATA[kind].description}`}
                           aria-label={BUFF_DATA[kind].name + (rank > 1 ? ` rank ${rank}` : "") + ". " + BUFF_DATA[kind].description}
                         >
                           <b className="grove-card-icon" aria-hidden="true">
@@ -2919,8 +2920,6 @@ export default function NatureDefenseGame() {
                             {BUFF_DATA[kind].name}
                             {rank > 1 ? <em> ×{rank}</em> : null}
                           </strong>
-                          <p>{BUFF_DATA[kind].description}</p>
-                          <small>{BUFF_DATA[kind].family}</small>
                         </article>
                       );
                     })}
@@ -3036,6 +3035,7 @@ export default function NatureDefenseGame() {
                   Chickadees fire quickly, foxes slow, boars cleanse groups,
                   and wolves chain spirit sparks. Levels increase damage and
                   attack speed while strengthening each guardian&apos;s specialty.
+                  Hover any guardian or spell card for its full stats.
                 </p>
               </div>
               <div>

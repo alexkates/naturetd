@@ -2560,7 +2560,7 @@ export default function NatureDefenseGame({
                   aria-label="Open leaderboard"
                   title="Top 10 runs"
                 >
-                  ♛
+                  🏆
                 </button>
                 <button
                   className="restart-button"
@@ -3004,6 +3004,12 @@ export default function NatureDefenseGame({
                         <strong>{run.name}</strong>
                         <b>Wave {formatNumber(run.wave)}</b>
                         <small>{formatNumber(run.stats.kills)} cleared</small>
+                        <time>
+                          {new Date(run.playedAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </time>
                       </button>
                     </li>
                   ))}

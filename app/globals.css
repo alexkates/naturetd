@@ -1809,8 +1809,15 @@ body {
 }
 
 .leaderboard-list button > small {
-  grid-column: 2 / 4;
+  grid-column: 2 / 3;
   color: #8a7892;
+}
+
+.leaderboard-list button > time {
+  grid-column: 3 / 4;
+  color: #a893b0;
+  font-size: var(--font-size-fine);
+  text-align: right;
 }
 
 .run-details {
@@ -3902,13 +3909,17 @@ body {
 
 .auth-shell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
   place-items: center;
   padding: clamp(16px, 4vw, 48px);
+  box-sizing: border-box;
 }
 
 .auth-card {
   width: min(460px, 100%);
+  min-width: 0;
+  box-sizing: border-box;
   padding: clamp(20px, 3vw, 32px);
   border: 1px solid var(--line);
   border-radius: 22px;
@@ -4012,6 +4023,7 @@ body {
 
 .profile-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -4024,7 +4036,19 @@ body {
 
 .profile-footer div {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+@media (max-width: 420px) {
+  .profile-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .profile-footer div {
+    justify-content: flex-end;
+  }
 }
 
 .account-controls {
@@ -4096,6 +4120,10 @@ body {
 .utility-controls button:hover:not(:disabled) {
   border-color: #c6aed5;
   background: #f4e9fb;
+}
+
+.leaderboard-button {
+  font-size: 17px;
 }
 
 .hud-actions .speed-controls button.active {

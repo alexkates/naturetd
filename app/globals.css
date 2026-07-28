@@ -1762,6 +1762,24 @@ body {
   font-size: var(--font-size-heading-feature);
 }
 
+.grove-build-modal {
+  position: relative;
+  overflow: auto;
+  width: min(640px, 100%);
+  max-height: calc(100dvh - 40px);
+  padding: 24px;
+  border: 2px solid #795293;
+  border-radius: 20px;
+  color: var(--ink);
+  background: linear-gradient(145deg, #fffaf0, #f3e8fb);
+  box-shadow: 0 30px 80px rgba(25, 13, 31, 0.4);
+}
+
+.grove-build-modal > h2 {
+  margin: 0 0 18px;
+  font-size: var(--font-size-heading-feature);
+}
+
 .leaderboard-layout {
   display: grid;
   grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.7fr);
@@ -1919,22 +1937,63 @@ body {
 }
 
 .saved-buffs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 7px;
   margin-top: 6px;
 }
 
-.saved-buffs span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 7px;
+.saved-buff-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 9px;
   border: 1px solid color-mix(in srgb, var(--buff-color), #765482 38%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--buff-color), #fff 88%);
+}
+
+.saved-buff-card > header {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.saved-buff-card > header > b {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--buff-color), #fff 82%);
+  color: color-mix(in srgb, var(--buff-color), #302040 65%);
+  background: color-mix(in srgb, var(--buff-color), #fff 55%);
+  font-size: var(--font-size-fine);
+}
+
+.saved-buff-card > header > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.saved-buff-card strong {
   font-size: var(--font-size-micro);
   font-weight: 700;
+}
+
+.saved-buff-card header small {
+  color: #8a7892;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.saved-buff-card > p {
+  margin: 0;
+  color: #6c5a76;
+  font-size: 10.5px;
+  line-height: 1.35;
 }
 
 .saved-run-stats {
@@ -3242,64 +3301,6 @@ body {
   font-weight: 800;
 }
 
-.buff-build {
-  position: absolute;
-  z-index: 6;
-  right: 10px;
-  bottom: 10px;
-  display: grid;
-  width: min(390px, 48%);
-  gap: 5px;
-  padding: 8px;
-  border: 1px solid rgba(226, 210, 233, .5);
-  border-radius: 11px;
-  color: #fffaf0;
-  background: rgba(42, 30, 49, .74);
-  box-shadow: 0 8px 22px rgba(25, 17, 30, .26);
-  pointer-events: none;
-  backdrop-filter: blur(5px);
-}
-
-.buff-build > strong {
-  color: #f0c95f;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: var(--font-size-micro);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-}
-
-.buff-build > div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-}
-
-.buff-build span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 180px;
-  padding: 3px 6px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--buff-color) 58%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--buff-color) 18%, rgba(28, 20, 33, .88));
-  font-size: var(--font-size-micro);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.buff-build span b {
-  color: var(--buff-color);
-}
-
-.buff-build span em {
-  color: #f1d16f;
-  font-style: normal;
-  font-weight: 800;
-}
-
 @media (max-width: 640px) {
   .buff-choice-overlay {
     align-content: start;
@@ -3325,10 +3326,6 @@ body {
 
   .buff-card-icon {
     grid-row: 1 / 5;
-  }
-
-  .buff-build {
-    width: min(310px, 72%);
   }
 }
 
@@ -3471,7 +3468,6 @@ body {
 }
 
 
-/* Footer Grove Build */
 .footer-controls {
   position: absolute;
   z-index: 8;
@@ -3480,7 +3476,7 @@ body {
   left: 18px;
   display: grid;
   height: 196px;
-  grid-template-columns: max-content minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: repeat(2, 1fr);
   gap: 8px 18px;
 }
@@ -3503,24 +3499,6 @@ body {
   grid-row: 2;
 }
 
-.footer-controls .buff-build {
-  position: relative;
-  inset: auto;
-  grid-row: 1 / 3;
-  grid-column: 2;
-  width: auto;
-  max-width: none;
-  min-width: 0;
-  align-self: stretch;
-  overflow: auto;
-  pointer-events: auto;
-}
-
-.footer-controls .buff-build > div {
-  align-content: flex-start;
-  justify-content: flex-start;
-}
-
 @media (max-width: 850px) {
   .canvas-stage {
     --board-bottom-gutter: 314px;
@@ -3537,8 +3515,7 @@ body {
   }
 
   .footer-controls .guardian-dock,
-  .footer-controls .spell-dock,
-  .footer-controls .buff-build {
+  .footer-controls .spell-dock {
     grid-column: 1;
   }
 
@@ -3548,10 +3525,6 @@ body {
 
   .footer-controls .spell-dock {
     grid-row: 2;
-  }
-
-  .footer-controls .buff-build {
-    grid-row: 3;
   }
 }
 
@@ -3566,140 +3539,6 @@ body {
   }
 }
 
-
-/* Inspectable Grove Build deck */
-.footer-controls .buff-build {
-  overflow: hidden;
-}
-
-.footer-controls .buff-build > div {
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 0;
-  min-height: 0;
-  padding: 4px 10px 10px 2px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-color: rgba(240, 201, 95, .55) transparent;
-  scrollbar-width: thin;
-}
-
-.grove-card {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  width: 190px;
-  height: 132px;
-  flex: 0 0 190px;
-  grid-template-columns: 36px minmax(0, 1fr);
-  grid-template-rows: auto 1fr auto;
-  gap: 5px 9px;
-  align-content: start;
-  margin-right: -142px;
-  padding: 11px;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--buff-color) 68%, #73547e);
-  border-radius: 13px;
-  color: #513d59;
-  background:
-    radial-gradient(circle at 0 0, color-mix(in srgb, var(--buff-color) 42%, transparent), transparent 44%),
-    linear-gradient(155deg, #fffdf7, #efe3f4);
-  box-shadow: 5px 7px 16px rgba(35, 23, 42, .3);
-  outline: none;
-  transition:
-    margin-right 170ms ease,
-    transform 170ms ease,
-    box-shadow 170ms ease;
-}
-
-.grove-card:last-child,
-.grove-card:only-child {
-  margin-right: 0;
-}
-
-.grove-card:hover,
-.grove-card:focus-visible {
-  z-index: 30;
-  margin-right: 8px;
-  box-shadow:
-    0 12px 26px rgba(30, 20, 36, .42),
-    0 0 20px color-mix(in srgb, var(--buff-color) 35%, transparent);
-  transform: translateY(-2px);
-}
-
-.grove-card:focus-visible {
-  outline: 2px solid var(--buff-color);
-  outline-offset: 2px;
-}
-
-.grove-card-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  grid-row: 1 / 4;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--buff-color) 75%, #684a78);
-  border-radius: 10px;
-  color: #4d394e;
-  background: color-mix(in srgb, var(--buff-color) 58%, white);
-  font-size: var(--font-size-title);
-}
-
-.grove-card > strong,
-.grove-card > p,
-.grove-card > small {
-  min-width: 0;
-  opacity: 1;
-  transform: none;
-  transition:
-    opacity 120ms ease 35ms,
-    transform 150ms ease 35ms;
-}
-
-.grove-card:hover > strong,
-.grove-card:hover > p,
-.grove-card:hover > small,
-.grove-card:focus-visible > strong,
-.grove-card:focus-visible > p,
-.grove-card:focus-visible > small,
-.grove-card:only-child > strong,
-.grove-card:only-child > p,
-.grove-card:only-child > small {
-  opacity: 1;
-  transform: none;
-}
-
-.grove-card > strong {
-  overflow: hidden;
-  color: #51335d;
-  font-size: var(--font-size-body-sm);
-  line-height: var(--line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.grove-card > strong em {
-  color: #a56b18;
-  font-style: normal;
-}
-
-.grove-card > p {
-  overflow: hidden;
-  color: #6f5d76;
-  font-size: var(--font-size-fine);
-  line-height: var(--line-height-body);
-}
-
-.grove-card > small {
-  overflow: hidden;
-  color: #8a6b93;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: var(--font-size-micro);
-  font-weight: 800;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
 
 @media (max-width: 850px) {
   .canvas-stage {
@@ -3796,19 +3635,6 @@ body {
   height: 62px;
 }
 
-.grove-card {
-  width: 158px;
-  height: 62px;
-  flex: 0 0 158px;
-  grid-template-rows: auto;
-  margin-right: -118px;
-  padding: 9px 11px;
-}
-
-.grove-card > strong {
-  align-self: center;
-}
-
 @media (max-width: 850px) {
   .footer-controls {
     height: 316px;
@@ -3833,7 +3659,7 @@ body {
 
 /* Docks share the board width instead of overflowing it. */
 .footer-controls {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .footer-controls .guardian-dock,
@@ -3847,10 +3673,6 @@ body {
   width: auto;
   min-width: 0;
   flex: 1 1 0;
-}
-
-.footer-controls .buff-build {
-  max-width: 34%;
 }
 
 .dock-art,
@@ -4124,6 +3946,23 @@ body {
 
 .leaderboard-button {
   font-size: 17px;
+}
+
+.utility-controls .grove-build-button {
+  display: flex;
+  align-items: center;
+  width: auto;
+  min-width: 32px;
+  padding: 0 8px 0 6px;
+  gap: 3px;
+  font-size: 15px;
+}
+
+.grove-build-button b {
+  color: #6d3b80;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: var(--font-size-micro);
+  font-weight: 800;
 }
 
 .hud-actions .speed-controls button.active {

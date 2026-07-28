@@ -901,15 +901,23 @@ function RunDetails({ run }: { run: LeaderboardRun }) {
         {buffRanks.size ? (
           <div className="saved-buffs">
             {[...buffRanks].map(([kind, rank]) => (
-              <span
+              <div
                 key={kind}
+                className="saved-buff-card"
                 style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
-                title={BUFF_DATA[kind].description}
               >
-                <b>{BUFF_DATA[kind].icon}</b>
-                {BUFF_DATA[kind].name}
-                {rank > 1 ? ` ×${rank}` : ""}
-              </span>
+                <header>
+                  <b>{BUFF_DATA[kind].icon}</b>
+                  <div>
+                    <strong>
+                      {BUFF_DATA[kind].name}
+                      {rank > 1 ? ` ×${rank}` : ""}
+                    </strong>
+                    <small>{BUFF_DATA[kind].family}</small>
+                  </div>
+                </header>
+                <p>{BUFF_DATA[kind].description}</p>
+              </div>
             ))}
           </div>
         ) : (
@@ -979,6 +987,7 @@ export default function NatureDefenseGame({
   const [helpOpen, setHelpOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [groveBuildOpen, setGroveBuildOpen] = useState(false);
   const [leaderboard, setLeaderboard] =
     useState<LeaderboardRun[]>(initialLeaderboard);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -2159,7 +2168,7 @@ export default function NatureDefenseGame({
   const sellSelected = useCallback(() => {
     const game = gameRef.current;
     const cell = selectedCellRef.current;
-    if (!cell || game.phase !== "intermission") return;
+    if (!cell || game.phase === "gameover") return;
     const key = keyOf(cell.x, cell.y);
     const tower = game.towers.get(key);
     if (!tower) return;
@@ -2546,6 +2555,17 @@ export default function NatureDefenseGame({
                 </button>
               </div>
               <div className="utility-controls">
+                {game.buffs.length ? (
+                  <button
+                    className="grove-build-button"
+                    onClick={() => setGroveBuildOpen(true)}
+                    aria-label={`View current Grove build (${game.buffs.length} blessings)`}
+                    title="Grove build"
+                  >
+                    🌿
+                    <b>{game.buffs.length}</b>
+                  </button>
+                ) : null}
                 <button
                   className="help-button"
                   onClick={openHelp}
@@ -2761,10 +2781,7 @@ export default function NatureDefenseGame({
                     <button onClick={moveSelected}>
                       Move <kbd>M</kbd>
                     </button>
-                    <button
-                      onClick={sellSelected}
-                      disabled={game.phase !== "intermission"}
-                    >
+                    <button onClick={sellSelected}>
                       Sell +{formatNumber(inspectedTower.spent)} <kbd>S</kbd>
                     </button>
                   </div>
@@ -2943,34 +2960,6 @@ export default function NatureDefenseGame({
                 );
               })}
             </div>
-              {game.buffs.length ? (
-                <aside className="buff-build" aria-label="Current Grove Blessings">
-                  <strong>Grove build</strong>
-                  <div>
-                    {BUFF_ORDER.filter((kind) => buffRank(game, kind) > 0).map((kind) => {
-                      const rank = buffRank(game, kind);
-                      return (
-                        <article
-                          key={kind}
-                          className="grove-card"
-                          tabIndex={0}
-                          style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
-                          title={`${BUFF_DATA[kind].family} · ${BUFF_DATA[kind].description}`}
-                          aria-label={BUFF_DATA[kind].name + (rank > 1 ? ` rank ${rank}` : "") + ". " + BUFF_DATA[kind].description}
-                        >
-                          <b className="grove-card-icon" aria-hidden="true">
-                            {BUFF_DATA[kind].icon}
-                          </b>
-                          <strong>
-                            {BUFF_DATA[kind].name}
-                            {rank > 1 ? <em> ×{rank}</em> : null}
-                          </strong>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </aside>
-              ) : null}
             </div>
           </div>
         </div>
@@ -3025,6 +3014,49 @@ export default function NatureDefenseGame({
                 <p>Finish a run to claim the first place.</p>
               </div>
             )}
+          </section>
+        </div>
+      )}
+
+      {groveBuildOpen && (
+        <div
+          className="help-backdrop"
+          role="presentation"
+          onMouseDown={() => setGroveBuildOpen(false)}
+        >
+          <section
+            className="grove-build-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="grove-build-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <p className="eyebrow">Current run</p>
+            <h2 id="grove-build-title">Grove build</h2>
+            <div className="saved-buffs">
+              {BUFF_ORDER.filter((kind) => buffRank(game, kind) > 0).map((kind) => {
+                const rank = buffRank(game, kind);
+                return (
+                  <div
+                    key={kind}
+                    className="saved-buff-card"
+                    style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties}
+                  >
+                    <header>
+                      <b>{BUFF_DATA[kind].icon}</b>
+                      <div>
+                        <strong>
+                          {BUFF_DATA[kind].name}
+                          {rank > 1 ? ` ×${rank}` : ""}
+                        </strong>
+                        <small>{BUFF_DATA[kind].family}</small>
+                      </div>
+                    </header>
+                    <p>{BUFF_DATA[kind].description}</p>
+                  </div>
+                );
+              })}
+            </div>
           </section>
         </div>
       )}

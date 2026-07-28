@@ -76,6 +76,7 @@ export async function getLeaderboard(): Promise<LeaderboardRun[]> {
     .select(
       "id, played_at, wave, seed, towers, buffs, stats, profiles(display_name)",
     )
+    .gt("kills", 0)
     .order("wave", { ascending: false })
     .order("kills", { ascending: false })
     .order("damage", { ascending: false })

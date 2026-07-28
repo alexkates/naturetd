@@ -30,6 +30,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<ANON_KEY from `supabase status -o env`>
 
 `lib/supabase/config.ts` also accepts `SUPABASE_URL` / `SUPABASE_ANON_KEY` / the Vercel-integration aliases — any of these work.
 
+### Production site URL (for OG/Twitter metadata)
+
+`app/layout.tsx` resolves absolute URLs (OG image, canonical links) from
+`NEXT_PUBLIC_SITE_URL`, falling back to Vercel's auto-set `VERCEL_URL`, then
+`http://localhost:3000`. Set `NEXT_PUBLIC_SITE_URL` in the production environment
+to the real custom domain if one is used, so social previews resolve to the right
+host instead of a `*.vercel.app` deployment URL.
+
 ### Magic-link redirect must be allow-listed
 
 Local GoTrue only redirects to URLs in `supabase/config.toml`. The app requests

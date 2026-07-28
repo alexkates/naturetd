@@ -2525,7 +2525,9 @@ export default function NatureDefenseGame({
                   ? "Wilted"
                   : game.paused
                     ? "Paused"
-                    : `${game.phase === "intermission" ? "Build" : "Blight"} ${Math.ceil(game.nextWaveIn)}s`}
+                    : game.phase === "intermission"
+                      ? `Build ${Math.ceil(game.nextWaveIn)}s`
+                      : "Blight"}
               </span>
               <div className="rush-control" title="Rush again within 4s for +25% gold, up to 2.5×">
                 <button

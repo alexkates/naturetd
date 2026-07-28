@@ -4001,6 +4001,8 @@ body {
   border-radius: 10px;
   background: #f4e9fb;
   font-size: var(--font-size-body-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .profile-footer {

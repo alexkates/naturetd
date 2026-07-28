@@ -77,8 +77,8 @@ export async function getLeaderboard(): Promise<LeaderboardRun[]> {
       "id, played_at, wave, seed, towers, buffs, stats, profiles(display_name)",
     )
     .gt("kills", 0)
-    .order("wave", { ascending: false })
     .order("kills", { ascending: false })
+    .order("wave", { ascending: false })
     .order("damage", { ascending: false })
     .order("battle_time", { ascending: true })
     .limit(MAX_LEADERBOARD_RUNS);

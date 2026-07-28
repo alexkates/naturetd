@@ -286,39 +286,6 @@ canvas {
   font-size: var(--font-size-body-sm);
 }
 
-.game-over-sparks span {
-  position: absolute;
-  color: #da8b31;
-  font-size: var(--font-size-title-lg);
-  animation: grove-spark 2.2s ease-in-out infinite alternate;
-}
-
-.game-over-sparks span:nth-child(1) {
-  top: 14px;
-  left: 22px;
-}
-
-.game-over-sparks span:nth-child(2) {
-  top: 28px;
-  right: 28px;
-  color: #7e5b9a;
-  animation-delay: -0.7s;
-}
-
-.game-over-sparks span:nth-child(3) {
-  bottom: 74px;
-  left: 28px;
-  color: #65964d;
-  animation-delay: -1.2s;
-}
-
-.game-over-sparks span:nth-child(4) {
-  right: 32px;
-  bottom: 82px;
-  color: #4aa9b8;
-  animation-delay: -1.7s;
-}
-
 .run-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -407,15 +374,6 @@ canvas {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes grove-spark {
-  from {
-    transform: translateY(3px) rotate(-8deg) scale(0.85);
-  }
-  to {
-    transform: translateY(-4px) rotate(9deg) scale(1.12);
   }
 }
 
@@ -1678,19 +1636,6 @@ body {
 .help-modal > h2 {
   margin-bottom: 20px;
   font-size: var(--font-size-heading-feature);
-}
-
-.help-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 34px;
-  height: 34px;
-  border: 1px solid #c7b1d5;
-  border-radius: 50%;
-  color: #634b72;
-  background: #f4e9fa;
-  font-size: var(--font-size-title-lg);
 }
 
 .help-grid {
@@ -4104,27 +4049,55 @@ body {
   color: #c38a31;
 }
 
-.save-status {
-  color: var(--muted);
+.save-status.error {
+  color: var(--danger);
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: var(--font-size-micro);
   text-transform: uppercase;
 }
 
-.save-status.error {
-  color: var(--danger);
-}
-
-.sign-out-button {
-  height: 32px;
-  padding: 0 11px;
-  border: 1px solid transparent;
-  border-radius: 10px;
+/* One shape for every top-bar control: same height, radius, border, and hover. */
+.hud-actions .speed-controls,
+.utility-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 3px;
+  border-radius: 11px;
   background: rgba(118, 82, 142, 0.09);
-  font-size: var(--font-size-body-sm);
 }
 
-.sign-out-button:hover {
+.hud-actions .speed-controls button,
+.utility-controls button {
+  display: grid;
+  width: 32px;
+  min-width: 32px;
+  height: 28px;
+  min-height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #5c426c;
+  background: transparent;
+  font-size: var(--font-size-body-sm);
+  font-weight: 700;
+}
+
+.hud-actions .speed-controls button:hover:not(:disabled),
+.utility-controls button:hover:not(:disabled) {
   border-color: #c6aed5;
   background: #f4e9fb;
+}
+
+.hud-actions .speed-controls button.active {
+  border-color: #c6aed5;
+  background: #fffdf9;
+}
+
+.rush-button,
+.account-chip {
+  height: 34px;
+  min-height: 34px;
 }

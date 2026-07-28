@@ -11,7 +11,6 @@ import {
 import {
   fetchLeaderboard,
   saveGameState,
-  signOut,
   submitRun,
 } from "@/app/actions";
 import type {
@@ -188,6 +187,7 @@ const TOWER_DATA: Record<
     cost: number;
     image: string;
     color: string;
+    tag: string;
     description: string;
     damage: number;
     rate: number;
@@ -201,6 +201,7 @@ const TOWER_DATA: Record<
     cost: 35,
     image: "/assets/towers/thorn.png",
     color: "#d9ef71",
+    tag: "Single target · fast",
     description: "Chicks fling cleansing seeds",
     damage: 7,
     rate: 3.1,
@@ -213,6 +214,7 @@ const TOWER_DATA: Record<
     cost: 55,
     image: "/assets/towers/frost.png",
     color: "#8ee8ff",
+    tag: "Single target · slow",
     description: "Snow foxes calm and slow",
     damage: 4,
     rate: 1.25,
@@ -225,6 +227,7 @@ const TOWER_DATA: Record<
     cost: 65,
     image: "/assets/towers/boulder.png",
     color: "#f4b26b",
+    tag: "Splash · heavy hit",
     description: "Boars scatter cleansing pollen",
     damage: 15,
     rate: 0.68,
@@ -237,6 +240,7 @@ const TOWER_DATA: Record<
     cost: 85,
     image: "/assets/towers/lightning.png",
     color: "#ffe66a",
+    tag: "Chain · multi-target",
     description: "Wolves chain bright spirit sparks",
     damage: 8,
     rate: 0.92,
@@ -252,6 +256,7 @@ const SPELL_DATA: Record<SpellKind, {
   cost: number;
   icon: string;
   color: string;
+  tag: string;
   description: string;
   hotkey: string;
   radius?: number;
@@ -261,6 +266,7 @@ const SPELL_DATA: Record<SpellKind, {
     cost: 320,
     icon: "☀",
     color: "#ffd35a",
+    tag: "AoE · stun",
     description: "18-target blast · stun up to 32",
     hotkey: "⇧1",
     radius: 4.2,
@@ -270,6 +276,7 @@ const SPELL_DATA: Record<SpellKind, {
     cost: 415,
     icon: "❄",
     color: "#8ee8ff",
+    tag: "AoE · slow",
     description: "6 capped damage waves · heavy slow",
     hotkey: "⇧2",
     radius: 3.5,
@@ -279,6 +286,7 @@ const SPELL_DATA: Record<SpellKind, {
     cost: 600,
     icon: "◉",
     color: "#d8f5c0",
+    tag: "Roaming · pushback",
     description: "3 roam for 30s · 30 total resets",
     hotkey: "⇧3",
     radius: 0.8,
@@ -288,6 +296,7 @@ const SPELL_DATA: Record<SpellKind, {
     cost: 750,
     icon: "✿",
     color: "#f3a6df",
+    tag: "Wide AoE · heal",
     description: "Hits 40 · execute wounded · heal 3",
     hotkey: "⇧4",
   },
@@ -975,9 +984,6 @@ export default function NatureDefenseGame({
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [runSubmitted, setRunSubmitted] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [savedAt, setSavedAt] = useState<number | null>(
-    savedGame ? Date.now() : null,
-  );
   const [introStep, setIntroStep] = useState(0);
   const [introHighlight, setIntroHighlight] = useState<{
     top: number;
@@ -1056,7 +1062,6 @@ export default function NatureDefenseGame({
     if (result.ok) {
       lastSavedRef.current = payload;
       setSaveError("");
-      setSavedAt(Date.now());
     } else {
       setSaveError(result.error);
     }
@@ -2265,7 +2270,6 @@ export default function NatureDefenseGame({
     setRunSubmitted(false);
     lastTimeRef.current = 0;
     lastSavedRef.current = null;
-    setSavedAt(null);
     void persistGame();
     refresh();
   }, [persistGame, refresh]);
@@ -2576,23 +2580,11 @@ export default function NatureDefenseGame({
                   <span aria-hidden="true">✿</span>
                   <strong>{displayName}</strong>
                 </a>
-                <span
-                  className={`save-status ${saveError ? "error" : ""}`}
-                  aria-live="polite"
-                >
-                  {saveError
-                    ? "Save failed"
-                    : savedAt
-                      ? "Run saved"
-                      : "Autosaving between waves"}
-                </span>
-                <button
-                  className="sign-out-button"
-                  type="button"
-                  onClick={() => void signOut().then(() => location.assign("/login"))}
-                >
-                  Sign out
-                </button>
+                {saveError ? (
+                  <span className="save-status error" aria-live="polite">
+                    Save failed
+                  </span>
+                ) : null}
               </div>
             </div>
           </header>
@@ -2782,9 +2774,6 @@ export default function NatureDefenseGame({
               {game.phase === "gameover" && (
                 <div className="game-over">
                   <div className="game-over-card">
-                    <div className="game-over-sparks" aria-hidden="true">
-                      <span>✦</span><span>◆</span><span>✿</span><span>✦</span>
-                    </div>
                     <p className="eyebrow">The grove remembers your stand</p>
                     <h2>Wave {formatNumber(game.wave)}</h2>
                     <p className="game-over-lede">
@@ -2882,7 +2871,6 @@ export default function NatureDefenseGame({
               className="guardian-dock"
               aria-label="Guardian build shortcuts"
             >
-              <span className="dock-label">Guardians</span>
               {TOWER_ORDER.map((kind) => {
                 const tower = TOWER_DATA[kind];
                 return (
@@ -2900,6 +2888,7 @@ export default function NatureDefenseGame({
                     </span>
                     <span className="dock-copy">
                       <strong>{tower.name}</strong>
+                      <em>{tower.tag}</em>
                       <small><kbd>{tower.hotkey}</kbd> · {tower.cost} gold</small>
                     </span>
                     <span
@@ -2922,7 +2911,6 @@ export default function NatureDefenseGame({
             </div>
 
             <div className="spell-dock" aria-label="One-use spell purchases">
-              <span className="spell-dock-label">Wild magic</span>
               {SPELL_ORDER.map((kind) => {
                 const spell = SPELL_DATA[kind];
                 const charges = game.spellCharges[kind];
@@ -2939,6 +2927,7 @@ export default function NatureDefenseGame({
                     <span className="spell-icon" aria-hidden="true">{spell.icon}</span>
                     <span className="spell-copy">
                       <strong>{spell.name}</strong>
+                      <em>{spell.tag}</em>
                       <small>
                         <kbd>{spell.hotkey}</kbd>
                         {charges ? `${charges} ready` : `${formatNumber(cost)} gold`}
@@ -3000,19 +2989,12 @@ export default function NatureDefenseGame({
             aria-labelledby="leaderboard-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <button
-              className="help-close"
-              onClick={() => setLeaderboardOpen(false)}
-              aria-label="Close leaderboard"
-            >
-              ×
-            </button>
             <p className="eyebrow">Grove legends</p>
             <h2 id="leaderboard-title">Top 10 last stands</h2>
             {leaderboard.length ? (
               <div className="leaderboard-layout">
                 <ol className="leaderboard-list">
-                  {leaderboard.map((run, index) => (
+                  {leaderboard.slice(0, 10).map((run, index) => (
                     <li key={run.id}>
                       <button
                         className={selectedLeaderboardRun?.id === run.id ? "selected" : ""}
@@ -3050,13 +3032,6 @@ export default function NatureDefenseGame({
             aria-labelledby="help-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <button
-              className="help-close"
-              onClick={closeHelp}
-              aria-label="Close help"
-            >
-              ×
-            </button>
             <p className="eyebrow">Field guide</p>
             <h2 id="help-title">How to guard the Heartwood</h2>
             <div className="help-grid">

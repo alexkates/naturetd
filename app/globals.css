@@ -3933,8 +3933,13 @@ body {
 
 .auth-form {
   display: grid;
-  gap: 8px;
+  gap: 14px;
   margin-top: 22px;
+}
+
+.auth-form .primary-action {
+  margin-top: 4px;
+  margin-bottom: 10px;
 }
 
 .auth-form label {

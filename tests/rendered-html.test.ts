@@ -16,7 +16,7 @@ beforeAll(async () => {
 
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
-      const response = await fetch(origin);
+      const response = await fetch(`${origin}/login`);
       if (response.ok) return;
     } catch {}
 
@@ -30,17 +30,20 @@ afterAll(() => {
   server.kill();
 });
 
-test("renders the playable Nature's Last Stand shell", async () => {
-  const response = await fetch(origin);
+test("gates the game behind sign-in", async () => {
+  const response = await fetch(origin, { redirect: "manual" });
+  expect(response.status).toBeGreaterThanOrEqual(300);
+  expect(response.status).toBeLessThan(400);
+  expect(response.headers.get("location") ?? "").toContain("/login");
+});
+
+test("renders the sign-in screen", async () => {
+  const response = await fetch(`${origin}/login`);
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type") ?? "").toMatch(/^text\/html\b/i);
 
   const html = await response.text();
-  expect(html).toMatch(/<title>Nature&#x27;s Last Stand<\/title>/i);
-  expect(html).toContain("Guardian build shortcuts");
-  expect(html).toContain("Wave 1");
-  expect(html).toContain("cleansing");
-  expect(html).toContain("Restart the current run");
-  expect(html).toContain("Chickadee Bramble");
+  expect(html).toMatch(/<title>Sign in · Nature&#x27;s Last Stand<\/title>/i);
+  expect(html).toContain("Sign in to defend the Heartwood");
   expect(html).not.toMatch(/codex-preview|react-loading-skeleton/i);
 });

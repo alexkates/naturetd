@@ -8,6 +8,22 @@ import {
   useState,
 } from "react";
 
+import {
+  fetchLeaderboard,
+  saveGameState,
+  signOut,
+  submitRun,
+} from "@/app/actions";
+import type {
+  BuffKind,
+  GameSaveState,
+  LeaderboardRun,
+  RunStats,
+  SavedTower,
+  SpellKind,
+  TowerKind,
+} from "@/lib/types";
+
 const COLS = 20;
 const ROWS = 10;
 const CELL = 40;
@@ -18,87 +34,7 @@ const CITY = { x: 19, y: 5 };
 const MAX_PENDING_BLIGHTLINGS = 240;
 
 type Point = { x: number; y: number };
-type TowerKind = "thorn" | "frost" | "boulder" | "lightning";
-type SpellKind = "solar" | "ice" | "tornado" | "bloom";
-type BuffKind =
-  | "sunseed"
-  | "threeSeed"
-  | "shatterfrost"
-  | "longWinter"
-  | "faultline"
-  | "aftershock"
-  | "echoHowl"
-  | "packCircuit"
-  | "ancientSap"
-  | "tailwind"
-  | "longRoots"
-  | "gildedPollen"
-  | "sunCrowned"
-  | "deepFreeze"
-  | "stormShepherd"
-  | "verdantMercy";
 type Phase = "intermission" | "wave" | "gameover";
-
-type SavedTower = {
-  x: number;
-  y: number;
-  kind: TowerKind;
-  level: number;
-  kills: number;
-  damageDone: number;
-};
-
-type RunStats = {
-  kills: number;
-  damage: number;
-  goldEarned: number;
-  goldSpent: number;
-  towersBuilt: number;
-  towerUpgrades: number;
-  bossesDefeated: number;
-  battleTime: number;
-  spellsCast: number;
-  wavesRushed: number;
-  rushGold: number;
-  timeSaved: number;
-};
-
-type LeaderboardRun = {
-  id: string;
-  name: string;
-  playedAt: string;
-  wave: number;
-  seed: number;
-  towers: SavedTower[];
-  buffs: BuffKind[];
-  stats: RunStats;
-};
-
-const LEADERBOARD_STORAGE_KEY = "nature-defense-leaderboard-v1";
-const PLAYER_NAME_STORAGE_KEY = "nature-defense-player-name";
-const MAX_LEADERBOARD_RUNS = 10;
-
-function compareRuns(a: LeaderboardRun, b: LeaderboardRun) {
-  return (
-    b.wave - a.wave ||
-    b.stats.kills - a.stats.kills ||
-    b.stats.damage - a.stats.damage ||
-    a.stats.battleTime - b.stats.battleTime
-  );
-}
-
-function readLeaderboard(): LeaderboardRun[] {
-  try {
-    const parsed = JSON.parse(
-      localStorage.getItem(LEADERBOARD_STORAGE_KEY) ?? "[]",
-    );
-    return Array.isArray(parsed)
-      ? (parsed as LeaderboardRun[]).sort(compareRuns).slice(0, MAX_LEADERBOARD_RUNS)
-      : [];
-  } catch {
-    return [];
-  }
-}
 
 type Tower = {
   kind: TowerKind;
@@ -649,6 +585,97 @@ function createGame(seed = newSeed()): Game {
   };
 }
 
+function savedTowers(game: Game): SavedTower[] {
+  return [...game.towers.entries()].map(([key, tower]) => {
+    const [x, y] = key.split(",").map(Number);
+    return {
+      x,
+      y,
+      kind: tower.kind,
+      level: tower.level,
+      kills: tower.kills,
+      damageDone: tower.damageDone,
+      spent: tower.spent,
+    };
+  });
+}
+
+function runStats(game: Game): RunStats {
+  return {
+    kills: game.kills,
+    damage: game.damage,
+    goldEarned: game.goldEarned,
+    goldSpent: game.goldSpent,
+    towersBuilt: game.towersBuilt,
+    towerUpgrades: game.towerUpgrades,
+    bossesDefeated: game.bossesDefeated,
+    battleTime: game.realElapsed,
+    spellsCast: game.spellsCast,
+    wavesRushed: game.wavesRushed,
+    rushGold: game.rushGold,
+    timeSaved: game.timeSaved,
+  };
+}
+
+function serializeGame(game: Game): GameSaveState {
+  return {
+    version: 1,
+    seed: game.seed,
+    wave: game.wave,
+    gold: game.gold,
+    health: game.health,
+    bestWave: game.bestWave,
+    towers: savedTowers(game),
+    buffs: [...game.buffs],
+    spellCharges: { ...game.spellCharges },
+    spellCasts: { ...game.spellCasts },
+    stats: runStats(game),
+  };
+}
+
+/**
+ * Rebuilds a run from a between-waves snapshot. The restored run always starts
+ * in an intermission so the player gets their build window back.
+ */
+function restoreGame(save: GameSaveState): Game {
+  const game = createGame(save.seed);
+  game.wave = save.wave;
+  game.gold = save.gold;
+  game.health = save.health;
+  game.bestWave = Math.max(save.bestWave, save.wave);
+  game.buffs = [...save.buffs];
+  game.spellCharges = { ...game.spellCharges, ...save.spellCharges };
+  game.spellCasts = { ...game.spellCasts, ...save.spellCasts };
+  game.kills = save.stats.kills;
+  game.damage = save.stats.damage;
+  game.goldEarned = save.stats.goldEarned;
+  game.goldSpent = save.stats.goldSpent;
+  game.towersBuilt = save.stats.towersBuilt;
+  game.towerUpgrades = save.stats.towerUpgrades;
+  game.bossesDefeated = save.stats.bossesDefeated;
+  game.realElapsed = save.stats.battleTime;
+  game.spellsCast = save.stats.spellsCast;
+  game.wavesRushed = save.stats.wavesRushed;
+  game.rushGold = save.stats.rushGold;
+  game.timeSaved = save.stats.timeSaved;
+
+  for (const tower of save.towers) {
+    game.towers.set(keyOf(tower.x, tower.y), {
+      kind: tower.kind,
+      level: tower.level,
+      spent: tower.spent ?? TOWER_DATA[tower.kind].cost,
+      cooldown: 0,
+      damageDone: tower.damageDone,
+      kills: tower.kills,
+    });
+  }
+
+  game.route = createPath(game.towers, game.rng, false) ?? [];
+  game.message = `Run restored at wave ${save.wave}. Rebuild before the next Blight.`;
+  game.messageUntil = 6;
+  return game;
+}
+
 const MAX_TOWER_LEVEL = 5;
 const UPGRADE_COST_MULTIPLIERS = [0, 2, 3, 5, 8];
 
@@ -898,13 +925,33 @@ function RunDetails({ run }: { run: LeaderboardRun }) {
   );
 }
 
-export default function NatureDefenseGame() {
+type GameProps = {
+  displayName: string;
+  email: string;
+  savedGame: GameSaveState | null;
+  initialLeaderboard: LeaderboardRun[];
+  bestWave: number;
+};
+
+export default function NatureDefenseGame({
+  displayName,
+  email,
+  savedGame,
+  initialLeaderboard,
+  bestWave,
+}: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const healthRef = useRef<HTMLDivElement>(null);
   const guardianDockRef = useRef<HTMLDivElement>(null);
   const hudActionsRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<Game>(createGame());
+  // Built on the first render only, so restoring a save never re-runs pathfinding.
+  const gameRef = useRef<Game>(null as unknown as Game);
+  if (!gameRef.current) {
+    const initial = savedGame ? restoreGame(savedGame) : createGame();
+    initial.bestWave = Math.max(bestWave, initial.bestWave);
+    gameRef.current = initial;
+  }
   const imagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const hoverRef = useRef<Point | null>(null);
   const selectedKindRef = useRef<TowerKind>("thorn");
@@ -923,19 +970,14 @@ export default function NatureDefenseGame() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardRun[]>(() =>
-    typeof window === "undefined" ? [] : readLeaderboard(),
-  );
+  const [leaderboard, setLeaderboard] =
+    useState<LeaderboardRun[]>(initialLeaderboard);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [playerName, setPlayerName] = useState(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return localStorage.getItem(PLAYER_NAME_STORAGE_KEY) ?? "";
-    } catch {
-      return "";
-    }
-  });
   const [runSubmitted, setRunSubmitted] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [savedAt, setSavedAt] = useState<number | null>(
+    savedGame ? Date.now() : null,
+  );
   const [introStep, setIntroStep] = useState(0);
   const [introHighlight, setIntroHighlight] = useState<{
     top: number;
@@ -993,82 +1035,74 @@ export default function NatureDefenseGame() {
   const syncBest = useCallback((wave: number) => {
     const game = gameRef.current;
     game.bestWave = Math.max(game.bestWave, wave);
-    try {
-      const previous = Number(localStorage.getItem("nature-defense-best") ?? 0);
-      const best = Math.max(previous, wave);
-      localStorage.setItem("nature-defense-best", String(best));
-      game.bestWave = best;
-    } catch {
-      game.bestWave = Math.max(game.bestWave, wave);
+  }, []);
+
+  const lastSavedRef = useRef<string | null>(
+    savedGame ? JSON.stringify(savedGame) : null,
+  );
+  const savingRef = useRef(false);
+  const submittingRef = useRef(false);
+
+  const persistGame = useCallback(async () => {
+    const game = gameRef.current;
+    if (savingRef.current || game.phase === "gameover") return;
+    const snapshot = serializeGame(game);
+    const payload = JSON.stringify(snapshot);
+    if (payload === lastSavedRef.current) return;
+
+    savingRef.current = true;
+    const result = await saveGameState(snapshot);
+    savingRef.current = false;
+    if (result.ok) {
+      lastSavedRef.current = payload;
+      setSaveError("");
+      setSavedAt(Date.now());
+    } else {
+      setSaveError(result.error);
     }
   }, []);
 
+  // Autosave between waves; live wave state is deliberately not checkpointed.
   useEffect(() => {
-    try {
-      gameRef.current.bestWave = Number(
-        localStorage.getItem("nature-defense-best") ?? 0,
-      );
-      refresh();
-    } catch {
-      // Local storage is optional; the run remains fully playable without it.
-    }
-  }, [refresh]);
+    const interval = window.setInterval(() => {
+      if (gameRef.current.phase === "intermission") void persistGame();
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [persistGame]);
 
-  const saveRun = useCallback(
-    (event: React.FormEvent) => {
-      event.preventDefault();
-      const name = playerName.trim();
-      if (!name || runSubmitted) return;
-      const game = gameRef.current;
-      const run: LeaderboardRun = {
-        id: `${Date.now()}-${game.seed}`,
-        name: name.slice(0, 24),
-        playedAt: new Date().toISOString(),
-        wave: game.wave,
-        seed: game.seed,
-        towers: [...game.towers.entries()].map(([key, tower]) => {
-          const [x, y] = key.split(",").map(Number);
-          return {
-            x,
-            y,
-            kind: tower.kind,
-            level: tower.level,
-            kills: tower.kills,
-            damageDone: tower.damageDone,
-          };
-        }),
-        buffs: [...game.buffs],
-        stats: {
-          kills: game.kills,
-          damage: game.damage,
-          goldEarned: game.goldEarned,
-          goldSpent: game.goldSpent,
-          towersBuilt: game.towersBuilt,
-          towerUpgrades: game.towerUpgrades,
-          bossesDefeated: game.bossesDefeated,
-          battleTime: game.realElapsed,
-          spellsCast: game.spellsCast,
-          wavesRushed: game.wavesRushed,
-          rushGold: game.rushGold,
-          timeSaved: game.timeSaved,
-        },
-      };
-      const next = [...leaderboard, run]
-        .sort(compareRuns)
-        .slice(0, MAX_LEADERBOARD_RUNS);
-      try {
-        localStorage.setItem(PLAYER_NAME_STORAGE_KEY, run.name);
-        localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Keep the leaderboard available for this session when storage is blocked.
-      }
-      setPlayerName(run.name);
-      setLeaderboard(next);
-      setSelectedRunId(run.id);
+  const publishRun = useCallback(async () => {
+    const game = gameRef.current;
+    if (submittingRef.current || runSubmitted) return;
+    submittingRef.current = true;
+    const result = await submitRun({
+      wave: game.wave,
+      seed: game.seed,
+      towers: savedTowers(game),
+      buffs: [...game.buffs],
+      stats: runStats(game),
+    });
+    submittingRef.current = false;
+    if (result.ok) {
+      lastSavedRef.current = null;
+      setLeaderboard(result.leaderboard);
       setRunSubmitted(true);
-    },
-    [leaderboard, playerName, runSubmitted],
-  );
+      setSaveError("");
+    } else {
+      setSaveError(result.error);
+    }
+  }, [runSubmitted]);
+
+  const openLeaderboard = useCallback(() => {
+    setLeaderboardOpen(true);
+    void fetchLeaderboard().then(setLeaderboard);
+  }, []);
+
+  const gamePhase = gameRef.current.phase;
+
+  // A wilted run posts itself to the leaderboard under the profile name.
+  useEffect(() => {
+    if (gamePhase === "gameover") void publishRun();
+  }, [gamePhase, publishRun]);
 
   const damageEnemy = useCallback(
     (game: Game, enemy: Enemy, damageAmount: number, tower: Tower) => {
@@ -2230,8 +2264,11 @@ export default function NatureDefenseGame() {
     setSelectedKind("thorn");
     setRunSubmitted(false);
     lastTimeRef.current = 0;
+    lastSavedRef.current = null;
+    setSavedAt(null);
+    void persistGame();
     refresh();
-  }, [refresh]);
+  }, [persistGame, refresh]);
 
   const requestRestart = useCallback(() => {
     if (window.confirm("Start a fresh run? Your current maze will be lost.")) {
@@ -2515,7 +2552,7 @@ export default function NatureDefenseGame() {
                 </button>
                 <button
                   className="leaderboard-button"
-                  onClick={() => setLeaderboardOpen(true)}
+                  onClick={openLeaderboard}
                   aria-label="Open leaderboard"
                   title="Top 10 runs"
                 >
@@ -2528,6 +2565,33 @@ export default function NatureDefenseGame() {
                   title="New run (N)"
                 >
                   ↻
+                </button>
+              </div>
+              <div className="account-controls">
+                <a
+                  className="account-chip"
+                  href="/profile"
+                  title={`Signed in as ${email}`}
+                >
+                  <span aria-hidden="true">✿</span>
+                  <strong>{displayName}</strong>
+                </a>
+                <span
+                  className={`save-status ${saveError ? "error" : ""}`}
+                  aria-live="polite"
+                >
+                  {saveError
+                    ? "Save failed"
+                    : savedAt
+                      ? "Run saved"
+                      : "Autosaving between waves"}
+                </span>
+                <button
+                  className="sign-out-button"
+                  type="button"
+                  onClick={() => void signOut().then(() => location.assign("/login"))}
+                >
+                  Sign out
                 </button>
               </div>
             </div>
@@ -2783,38 +2847,30 @@ export default function NatureDefenseGame() {
                       )}
                     </div>
 
-                    {!runSubmitted ? (
-                      <form className="run-name-form" onSubmit={saveRun}>
-                        <label htmlFor="run-player-name">Add this run to the grove legends</label>
-                        <div>
-                          <input
-                            id="run-player-name"
-                            value={playerName}
-                            onChange={(event) => setPlayerName(event.target.value)}
-                            placeholder="Your name"
-                            maxLength={24}
-                            autoFocus
-                            required
-                          />
-                          <button className="primary-action" type="submit">
-                            Save run
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <div className="saved-run-actions">
-                        <p>Run saved for <strong>{playerName}</strong>.</p>
-                        <button
-                          type="button"
-                          onClick={() => setLeaderboardOpen(true)}
-                        >
-                          View leaderboard
+                    <div className="saved-run-actions">
+                      {saveError ? (
+                        <p role="alert" className="auth-error">
+                          Could not post this run: {saveError}
+                        </p>
+                      ) : runSubmitted ? (
+                        <p>
+                          Run posted as <strong>{displayName}</strong>.
+                        </p>
+                      ) : (
+                        <p aria-live="polite">Posting your run…</p>
+                      )}
+                      {saveError ? (
+                        <button type="button" onClick={() => void publishRun()}>
+                          Try again
                         </button>
-                        <button className="primary-action" onClick={restart}>
-                          Grow another last stand
-                        </button>
-                      </div>
-                    )}
+                      ) : null}
+                      <button type="button" onClick={openLeaderboard}>
+                        View leaderboard
+                      </button>
+                      <button className="primary-action" onClick={restart}>
+                        Grow another last stand
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

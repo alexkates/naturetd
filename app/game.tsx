@@ -2487,32 +2487,28 @@ export default function NatureDefenseGame({
               <h1>Nature&apos;s Last Stand</h1>
             </div>
 
-            <div className="resource-bar" aria-label="Current run statistics">
-              <div className="resource">
-                <span>Gold</span>
-                <strong className="gold-value">{formatNumber(game.gold)}</strong>
+            <div className="hud-stats" aria-label="Current run statistics">
+              <div className="stat gold-value">
+                <b>{formatNumber(game.gold)}</b>
+                <i>gold</i>
               </div>
-              <div className="resource" ref={healthRef}>
-                <span>Heartwood</span>
-                <strong className={game.health <= 5 ? "danger-value" : ""}>
-                  {game.health}/20
-                </strong>
-              </div>
-              <div className="resource">
-                <span>Wave</span>
-                <strong>{formatNumber(game.wave)}</strong>
+              <div className="stat" ref={healthRef}>
+                <b className={game.health <= 5 ? "danger-value" : ""}>
+                  {game.health}
+                  <small>/20</small>
+                </b>
+                <i>heartwood</i>
               </div>
             </div>
 
             <div ref={hudActionsRef} className="hud-actions">
               <span className={`phase-pill ${game.phase}`}>
+                <b>Wave {formatNumber(game.wave)}</b>
                 {game.phase === "gameover"
                   ? "Wilted"
                   : game.paused
                     ? "Paused"
-                    : game.phase === "intermission"
-                      ? `Build · ${Math.ceil(game.nextWaveIn)}s`
-                      : `Blight · ${Math.ceil(game.nextWaveIn)}s`}
+                    : `${game.phase === "intermission" ? "Build" : "Blight"} ${Math.ceil(game.nextWaveIn)}s`}
               </span>
               <div className="rush-control" title="Rush again within 4s for +25% gold, up to 2.5×">
                 <button
@@ -2530,11 +2526,11 @@ export default function NatureDefenseGame({
                   } as React.CSSProperties
                 }
               >
-                {rushWindow > 0 ? `Chain ×${nextRushStreak}` : `Wave ${formatNumber(game.wave + 1)}`}
-                {" "}· +{formatNumber(rushBonus)} <kbd>Space</kbd>
+                {rushWindow > 0 ? `Chain ×${nextRushStreak}` : "Rush"}
+                {" "}+{formatNumber(rushBonus)} <kbd>Space</kbd>
                 </button>
               </div>
-              <div className="speed-controls">
+              <div className="segmented">
                 <button
                   className={game.speed === 1 ? "active" : ""}
                   onClick={() => setSpeed(1)}
@@ -2556,8 +2552,9 @@ export default function NatureDefenseGame({
                 >
                   {game.paused ? "▶" : "Ⅱ"}
                 </button>
-              </div>
-              <div className="utility-controls">
+
+                <hr />
+
                 {game.buffs.length ? (
                   <button
                     className="grove-build-button"
@@ -2570,7 +2567,6 @@ export default function NatureDefenseGame({
                   </button>
                 ) : null}
                 <button
-                  className="help-button"
                   onClick={openHelp}
                   aria-label="Open game help"
                   title="Help (H)"
@@ -2578,7 +2574,6 @@ export default function NatureDefenseGame({
                   ?
                 </button>
                 <button
-                  className="leaderboard-button"
                   onClick={openLeaderboard}
                   aria-label="Open leaderboard"
                   title="Top 10 runs"
@@ -2586,7 +2581,6 @@ export default function NatureDefenseGame({
                   🏆
                 </button>
                 <button
-                  className="restart-button"
                   onClick={requestRestart}
                   aria-label="Restart the current run"
                   title="New run (N)"
@@ -2594,21 +2588,19 @@ export default function NatureDefenseGame({
                   ↻
                 </button>
               </div>
-              <div className="account-controls">
-                <a
-                  className="account-chip"
-                  href="/profile"
-                  title={`Signed in as ${email}`}
-                >
-                  <span aria-hidden="true">✿</span>
-                  <strong>{displayName}</strong>
-                </a>
+              <a
+                className="account-chip"
+                href="/profile"
+                title={`Signed in as ${email}`}
+              >
+                <span aria-hidden="true">✿</span>
+                <strong>{displayName}</strong>
                 {saveError ? (
-                  <span className="save-status error" aria-live="polite">
-                    Save failed
-                  </span>
+                  <em aria-live="polite" title="Save failed">
+                    !
+                  </em>
                 ) : null}
-              </div>
+              </a>
             </div>
           </header>
 
@@ -2899,18 +2891,19 @@ export default function NatureDefenseGame({
                     className={selectedKind === kind ? "selected" : ""}
                     onClick={() => selectTower(kind)}
                     disabled={game.phase === "gameover" || Boolean(game.pendingBuffChoices)}
+                    aria-label={`Select ${tower.name}, ${tower.cost} gold. ${tower.description}`}
                     aria-describedby={`tower-tooltip-${kind}`}
                     style={{ "--tower-color": tower.color } as React.CSSProperties}
                   >
+                    <span className="tile-meta">
+                      <kbd>{tower.hotkey}</kbd>
+                      <small>{tower.cost}</small>
+                    </span>
                     <span className="dock-art">
                       <img src={tower.image} alt="" />
                       <img src={tower.guardian} alt="" />
                     </span>
-                    <span className="dock-copy">
-                      <strong>{tower.name}</strong>
-                      <em>{tower.tag}</em>
-                      <small><kbd>{tower.hotkey}</kbd> · {tower.cost} gold</small>
-                    </span>
+                    <span className="tile-name">{tower.name}</span>
                     <span
                       id={`tower-tooltip-${kind}`}
                       className="guardian-tooltip"
@@ -2930,6 +2923,8 @@ export default function NatureDefenseGame({
               })}
             </div>
 
+            <hr className="dock-split" />
+
             <div className="spell-dock" aria-label="One-use spell purchases">
               {SPELL_ORDER.map((kind) => {
                 const spell = SPELL_DATA[kind];
@@ -2944,15 +2939,12 @@ export default function NatureDefenseGame({
                     style={{ "--spell-color": spell.color } as React.CSSProperties}
                     aria-label={`${charges ? "Arm" : "Buy and arm"} ${spell.name}. ${spell.description}`}
                   >
-                    <span className="spell-icon" aria-hidden="true">{spell.icon}</span>
-                    <span className="spell-copy">
-                      <strong>{spell.name}</strong>
-                      <em>{spell.tag}</em>
-                      <small>
-                        <kbd>{spell.hotkey}</kbd>
-                        {charges ? `${charges} ready` : `${formatNumber(cost)} gold`}
-                      </small>
+                    <span className="tile-meta">
+                      <kbd>{spell.hotkey}</kbd>
+                      <small>{charges ? `×${charges}` : formatNumber(cost)}</small>
                     </span>
+                    <span className="spell-icon" aria-hidden="true">{spell.icon}</span>
+                    <span className="tile-name">{spell.name}</span>
                     <span className="spell-tooltip" role="tooltip">
                       <strong>{spell.name}</strong>
                       <span>{spell.description}</span>

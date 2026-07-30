@@ -1105,6 +1105,105 @@ function RunDetails({ run }: { run: LeaderboardRun }) {
   );
 }
 
+function CurrentRunOverview({ game }: { game: Game }) {
+  const towerBreakdown = TOWER_ORDER.map((kind) => {
+    const towers = [...game.towers.values()].filter((tower) => tower.kind === kind);
+    return {
+      kind,
+      count: towers.length,
+      levels: towers.reduce((total, tower) => total + tower.level, 0),
+      kills: towers.reduce((total, tower) => total + tower.kills, 0),
+      damage: towers.reduce((total, tower) => total + tower.damageDone, 0),
+      invested: towers.reduce((total, tower) => total + tower.spent, 0),
+    };
+  }).filter(({ count }) => count > 0);
+  const activeBuffs = BUFF_ORDER.filter((kind) => buffRank(game, kind) > 0);
+
+  return (
+    <section className="run-overview" role="dialog" aria-modal="true" aria-labelledby="run-overview-title">
+      <header className="run-overview-header">
+        <div>
+          <p className="eyebrow">Current stand</p>
+          <h2 id="run-overview-title">Wave {formatNumber(game.wave)} overview</h2>
+        </div>
+        <span><kbd>Tab</kbd> release to close</span>
+      </header>
+
+      <div className="run-overview-vitals">
+        <span><small>Heartwood</small><strong>{game.health}/{MAX_HEALTH}</strong></span>
+        <span><small>Gold ready</small><strong>{formatNumber(game.gold)}</strong></span>
+        <span><small>Best wave</small><strong>{formatNumber(game.bestWave)}</strong></span>
+        <span><small>Battle time</small><strong>{formatDuration(game.realElapsed)}</strong></span>
+      </div>
+
+      <div className="run-overview-layout">
+        <div className="run-overview-column">
+          <h3>Guardian build <small>{game.towers.size} active</small></h3>
+          {towerBreakdown.length ? (
+            <div className="overview-guardians">
+              {towerBreakdown.map(({ kind, count, levels, kills, damage, invested }) => (
+                <article key={kind} style={{ "--tower-color": TOWER_DATA[kind].color } as React.CSSProperties}>
+                  <TowerIcon kind={kind} size={48} level={Math.max(1, Math.round(levels / count))} />
+                  <div>
+                    <strong>{TOWER_DATA[kind].name}</strong>
+                    <span>{count} active · {levels} total levels · {formatNumber(invested)} gold</span>
+                  </div>
+                  <dl>
+                    <div><dt>Cleared</dt><dd>{formatNumber(kills)}</dd></div>
+                    <div><dt>Damage</dt><dd>{formatNumber(damage)}</dd></div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          ) : <p className="overview-empty">No guardians planted yet.</p>}
+
+          <h3>Grove blessings <small>{activeBuffs.length} unique</small></h3>
+          {activeBuffs.length ? (
+            <div className="overview-buffs">
+              {activeBuffs.map((kind) => (
+                <span key={kind} style={{ "--buff-color": BUFF_DATA[kind].color } as React.CSSProperties} title={BUFF_DATA[kind].description}>
+                  <b>{BUFF_DATA[kind].icon}</b>
+                  {BUFF_DATA[kind].name}
+                  {buffRank(game, kind) > 1 ? <small>×{buffRank(game, kind)}</small> : null}
+                </span>
+              ))}
+            </div>
+          ) : <p className="overview-empty">Defeat a Grime King to earn your first blessing.</p>}
+        </div>
+
+        <div className="run-overview-column">
+          <h3>Run totals</h3>
+          <div className="overview-stat-grid">
+            <span><small>Blightlings cleared</small><strong>{formatNumber(game.kills)}</strong></span>
+            <span><small>Cleansing damage</small><strong>{formatNumber(game.damage)}</strong></span>
+            <span><small>Gold earned</small><strong>{formatNumber(game.goldEarned)}</strong></span>
+            <span><small>Gold invested</small><strong>{formatNumber(game.goldSpent)}</strong></span>
+            <span><small>Guardians planted</small><strong>{formatNumber(game.towersBuilt)}</strong></span>
+            <span><small>Guardian upgrades</small><strong>{formatNumber(game.towerUpgrades)}</strong></span>
+            <span><small>Bosses defeated</small><strong>{formatNumber(game.bossesDefeated)}</strong></span>
+            <span><small>Spells unleashed</small><strong>{formatNumber(game.spellsCast)}</strong></span>
+            <span><small>Waves rushed</small><strong>{formatNumber(game.wavesRushed)}</strong></span>
+            <span><small>Rush gold</small><strong>{formatNumber(game.rushGold)}</strong></span>
+            <span><small>Time saved</small><strong>{formatDuration(game.timeSaved)}</strong></span>
+            <span><small>Rush streak</small><strong>×{formatNumber(game.rushStreak)}</strong></span>
+          </div>
+
+          <h3>Wild magic</h3>
+          <div className="overview-spells">
+            {SPELL_ORDER.map((kind) => (
+              <span key={kind}>
+                <b>{SPELL_DATA[kind].icon}</b>
+                <span>{SPELL_DATA[kind].name}<small>{game.spellCasts[kind]} cast</small></span>
+                <strong>{game.spellCharges[kind]} ready</strong>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 type GameProps = {
   displayName: string;
   isNewProfile: boolean;
@@ -1160,6 +1259,7 @@ export default function NatureDefenseGame({
   const [nameSaved, setNameSaved] = useState(false);
   const [profilePending, startProfileTransition] = useTransition();
   const [groveBuildOpen, setGroveBuildOpen] = useState(false);
+  const [runOverviewOpen, setRunOverviewOpen] = useState(false);
   const [leaderboard, setLeaderboard] =
     useState<LeaderboardRun[]>(initialLeaderboard);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -2484,6 +2584,23 @@ export default function NatureDefenseGame({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
+      if (event.key === "Tab") {
+        if (
+          !introOpen &&
+          !helpOpen &&
+          !profileOpen &&
+          !leaderboardOpen &&
+          !groveBuildOpen &&
+          !gameRef.current.pendingBuffChoices
+        ) {
+          event.preventDefault();
+          if (!event.repeat) {
+            setRunOverviewOpen(true);
+            refresh();
+          }
+        }
+        return;
+      }
       if (introOpen) {
         if (event.key === "Escape") closeIntro();
         else if (event.key === "ArrowLeft") {
@@ -2543,9 +2660,19 @@ export default function NatureDefenseGame({
         else setSelectedCell(null);
       }
     };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Tab") setRunOverviewOpen(false);
+    };
+    const closeRunOverview = () => setRunOverviewOpen(false);
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [cancelMove, cancelSpell, closeHelp, closeIntro, helpOpen, introOpen, isNewProfile, moveSelected, nextIntroStep, openHelp, profileOpen, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected]);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", closeRunOverview);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", closeRunOverview);
+    };
+  }, [cancelMove, cancelSpell, closeHelp, closeIntro, groveBuildOpen, helpOpen, introOpen, isNewProfile, leaderboardOpen, moveSelected, nextIntroStep, openHelp, profileOpen, refresh, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
@@ -3111,6 +3238,12 @@ export default function NatureDefenseGame({
         </div>
       )}
 
+      {runOverviewOpen ? (
+        <div className="run-overview-backdrop">
+          <CurrentRunOverview game={game} />
+        </div>
+      ) : null}
+
       {groveBuildOpen && (
         <div
           className="help-backdrop"
@@ -3227,6 +3360,7 @@ export default function NatureDefenseGame({
               <span><kbd>F</kbd> Toggle speed</span>
               <span><kbd>P</kbd> Pause</span>
               <span><kbd>N</kbd> New run</span>
+              <span><kbd>Hold Tab</kbd> Run overview</span>
               <span><kbd>Esc</kbd> Close or deselect</span>
               <span><kbd>H</kbd> Help</span>
             </div>

@@ -147,12 +147,16 @@ h2 {
   content: " ·";
 }
 
+.art-icon {
+  display: block;
+  flex: none;
+}
+
 canvas {
   display: block;
   width: 100%;
   height: auto;
   aspect-ratio: 2 / 1;
-  image-rendering: pixelated;
   touch-action: manipulation;
 }
 
@@ -517,7 +521,7 @@ body {
   left: 0;
   overflow: hidden;
   border-block: 2px solid rgba(104, 74, 130, 0.48);
-  background: #4b7438;
+  background: #c7dda2;
 }
 
 .canvas-stage canvas {
@@ -574,14 +578,14 @@ body {
   display: flex;
 }
 
-.wave-peek img {
-  width: 26px;
-  height: 26px;
+.wave-peek > div > span {
+  display: grid;
+  place-items: center;
   margin-left: -4px;
+  padding: 1px;
   border: 1px solid rgba(104, 74, 130, 0.4);
   border-radius: 50%;
-  background: #d8ef9a;
-  image-rendering: pixelated;
+  background: #e4f3c4;
 }
 
 .wave-announcement {
@@ -675,12 +679,9 @@ body {
   white-space: nowrap;
 }
 
-.wave-roster img {
-  width: 25px;
-  height: 25px;
+.wave-roster .art-icon {
   border-radius: 50%;
-  background: #d8ef9a;
-  image-rendering: pixelated;
+  background: #e4f3c4;
 }
 
 .wave-roster b {
@@ -871,23 +872,14 @@ body {
 .dock-art {
   position: relative;
   display: block;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
 }
 
-.dock-art img {
+.dock-art .art-icon {
   position: absolute;
-  inset: 0;
-  width: 34px;
-  height: 34px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.dock-art img:last-child {
-  inset: auto 0 0 auto;
-  width: 21px;
-  height: 21px;
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
 }
 
 .guardian-tooltip {
@@ -955,6 +947,18 @@ body {
   border-radius: 11px;
   transform: translate(-50%, calc(-100% - 25px));
   pointer-events: auto;
+}
+
+.tower-portrait {
+  display: grid;
+  justify-self: center;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  margin-bottom: 1px;
+  border: 1px solid rgba(104, 74, 130, 0.28);
+  border-radius: 12px;
+  background: #dcecbc;
 }
 
 .tower-popover.edge-left {
@@ -1311,11 +1315,9 @@ body {
   background: color-mix(in srgb, var(--tower-color), #fff 52%);
 }
 
-.saved-board-cell img {
-  width: 90%;
-  height: 90%;
-  object-fit: contain;
-  image-rendering: pixelated;
+.saved-board-cell .art-icon {
+  width: 92%;
+  height: 92%;
 }
 
 .saved-board-cell b {

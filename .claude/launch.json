@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "naturetd",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "port": 3999,
+      "autoPort": false
     }
   ]
 }

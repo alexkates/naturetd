@@ -16,7 +16,7 @@ vercel env pull .env.local
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The game requires a signed-in
+Open [http://localhost:3999](http://localhost:3999). The game requires a signed-in
 player, so `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` must be
 present locally (the Vercel/Supabase integration sets them in the deployment).
 
@@ -33,7 +33,7 @@ Row-level security keeps saves private to their owner while profiles and
 finished runs stay publicly readable for the leaderboard.
 
 In the Supabase dashboard, add your deployment's `/auth/callback` URL (and
-`http://localhost:3000/auth/callback`) to **Authentication → URL Configuration →
+`http://localhost:3999/auth/callback`) to **Authentication → URL Configuration →
 Redirect URLs**.
 
 ## Checks

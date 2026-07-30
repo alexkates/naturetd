@@ -12,9 +12,6 @@ const eslintConfig = defineConfig([
       "react-hooks/purity": "off",
       "react-hooks/refs": "off",
       "react-hooks/set-state-in-effect": "off",
-      // Animated GIF sprites rendered at CSS-driven sizes; next/image adds no
-      // benefit and would need `unoptimized` plus hardcoded dimensions per icon.
-      "@next/next/no-img-element": "off",
     },
   },
   // Override default ignores of eslint-config-next.
@@ -24,6 +21,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Scratch files the local Supabase CLI writes while `supabase start` is up.
+    "supabase/.temp/**",
   ]),
 ]);
 

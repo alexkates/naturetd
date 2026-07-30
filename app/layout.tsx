@@ -3,7 +3,7 @@ import "./globals.css";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3999");
 
 const title = "Nature's Last Stand";
 const description =
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   description,
   icons: {
-    icon: "/assets/towers/thorn.png",
+    icon: "/favicon.svg",
   },
   openGraph: {
     title,

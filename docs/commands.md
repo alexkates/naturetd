@@ -4,7 +4,7 @@ Package manager is Bun (`bun@1.3.1`, see `package.json#packageManager`). Node >=
 
 ```bash
 bun install          # install deps
-bun run dev           # start Next.js dev server on :3000
+bun run dev           # start Next.js dev server on :3999
 bun run build         # production build
 bun run start         # run the production build
 bun run lint          # eslint .

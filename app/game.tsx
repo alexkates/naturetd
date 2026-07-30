@@ -17,6 +17,17 @@ import {
   signOut,
   submitRun,
 } from "@/app/actions";
+import type { BlightKind } from "@/app/art";
+import {
+  drawBlightling,
+  drawGrass,
+  drawGuardian,
+  drawHealthBar,
+  drawHeartwood,
+  drawNest,
+  drawRift,
+  drawShot,
+} from "@/app/art";
 import type {
   BuffKind,
   GameSaveState,
@@ -35,6 +46,7 @@ const HEIGHT = ROWS * CELL;
 const START = { x: 0, y: 4 };
 const CITY = { x: 19, y: 5 };
 const MAX_PENDING_BLIGHTLINGS = 240;
+const MAX_HEALTH = 20;
 
 type Point = { x: number; y: number };
 type Phase = "intermission" | "wave" | "gameover";
@@ -91,17 +103,17 @@ type SpellEffect =
 type Projectile = {
   from: Point;
   to: Point;
-  color: string;
+  kind: TowerKind;
   age: number;
   duration: number;
-  width: number;
+  /** Keeps a bolt's jitter and a pellet's spin stable for its whole life. */
+  seed: number;
   arc?: boolean;
 };
 
 type Invader = {
   name: string;
-  file: string;
-  sprite: number;
+  art: BlightKind;
   hp: number;
   speed: number;
   bounty: number;
@@ -166,17 +178,16 @@ type Game = {
 };
 
 const BLIGHTLINGS: Invader[] = [
-  { name: "Muckling", file: "muckling.png", sprite: 0, hp: 0.7, speed: 1, bounty: 4, unlock: 1 },
-  { name: "Cinderling", file: "cinderling.png", sprite: 1, hp: 0.52, speed: 1.42, bounty: 5, unlock: 1 },
-  { name: "Scrapbug", file: "scrapbug.png", sprite: 2, hp: 1.15, speed: 0.7, bounty: 8, unlock: 1 },
-  { name: "Sporefiend", file: "sporefiend.png", sprite: 3, hp: 0.95, speed: 0.92, bounty: 7, unlock: 2 },
-  { name: "Smogbat", file: "smogbat.png", sprite: 4, hp: 0.7, speed: 1.62, bounty: 7, unlock: 4, cityDamage: 2 },
+  { name: "Muckling", art: "muckling", hp: 0.7, speed: 1, bounty: 4, unlock: 1 },
+  { name: "Cinderling", art: "cinderling", hp: 0.52, speed: 1.42, bounty: 5, unlock: 1 },
+  { name: "Scrapbug", art: "scrapbug", hp: 1.15, speed: 0.7, bounty: 8, unlock: 1 },
+  { name: "Sporefiend", art: "sporefiend", hp: 0.95, speed: 0.92, bounty: 7, unlock: 2 },
+  { name: "Smogbat", art: "smogbat", hp: 0.7, speed: 1.62, bounty: 7, unlock: 4, cityDamage: 2 },
 ];
 
 const BOSS: Invader = {
   name: "The Grime King",
-  file: "grime-king.png",
-  sprite: 5,
+  art: "grimeKing",
   hp: 18,
   speed: 0.58,
   bounty: 275,
@@ -189,7 +200,6 @@ const TOWER_DATA: Record<
   {
     name: string;
     cost: number;
-    image: string;
     color: string;
     tag: string;
     description: string;
@@ -197,60 +207,51 @@ const TOWER_DATA: Record<
     rate: number;
     range: number;
     hotkey: string;
-    guardian: string;
   }
 > = {
   thorn: {
     name: "Chickadee Bramble",
     cost: 35,
-    image: "/assets/towers/thorn.png",
-    color: "#d9ef71",
+    color: "#8fbf3f",
     tag: "Single target · fast",
     description: "Chicks fling cleansing seeds",
     damage: 7,
     rate: 3.1,
     range: 2.35,
     hotkey: "1",
-    guardian: "/assets/animals/TinyChick.gif",
   },
   frost: {
     name: "Foxglove Den",
     cost: 55,
-    image: "/assets/towers/frost.png",
-    color: "#8ee8ff",
+    color: "#4fc3e8",
     tag: "Single target · slow",
     description: "Snow foxes calm and slow",
     damage: 4,
     rate: 1.25,
     range: 2.8,
     hotkey: "2",
-    guardian: "/assets/animals/SnowFox.gif",
   },
   boulder: {
     name: "Boarstone Burrow",
     cost: 65,
-    image: "/assets/towers/boulder.png",
-    color: "#f4b26b",
+    color: "#e08c3c",
     tag: "Splash · heavy hit",
     description: "Boars scatter cleansing pollen",
     damage: 15,
     rate: 0.68,
     range: 3,
     hotkey: "3",
-    guardian: "/assets/animals/MadBoar.gif",
   },
   lightning: {
     name: "Wolfwood Roost",
     cost: 85,
-    image: "/assets/towers/lightning.png",
-    color: "#ffe66a",
+    color: "#e0b23a",
     tag: "Chain · multi-target",
     description: "Wolves chain bright spirit sparks",
     damage: 8,
     rate: 0.92,
     range: 2.85,
     hotkey: "4",
-    guardian: "/assets/animals/TimberWolf.gif",
   },
 };
 
@@ -558,7 +559,7 @@ function createGame(seed = newSeed()): Game {
   const towers = new Map<string, Tower>();
   return {
     gold: 500,
-    health: 20,
+    health: MAX_HEALTH,
     wave: 0,
     phase: "intermission",
     towers,
@@ -841,8 +842,158 @@ function upcomingInvaders(wave: number) {
   return BLIGHTLINGS.filter((invader) => invader.unlock <= next).slice(0, 5);
 }
 
-function invaderImagePath(invader: Invader) {
-  return `/assets/blight/${invader.file}`;
+/** Runs `paint` with the origin at the centre of a grid cell, scaled to it. */
+function drawInCell(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  paint: () => void,
+) {
+  context.save();
+  context.translate((x + 0.5) * CELL, (y + 0.5) * CELL);
+  context.scale(CELL / 100, CELL / 100);
+  paint();
+  context.restore();
+}
+
+/** How high above cell centre each guardian sits — tuned per nest silhouette. */
+const GUARDIAN_PERCH: Record<TowerKind, number> = {
+  thorn: 2,
+  frost: -14,
+  boulder: -20,
+  lightning: -22,
+};
+
+/**
+ * Nest plus its guardian, in the shared 100-box. Both the board and the UI
+ * icons go through here so a tower looks identical wherever it appears.
+ */
+function paintTower(
+  context: CanvasRenderingContext2D,
+  kind: TowerKind,
+  elapsed: number,
+  phase: number,
+  level = 1,
+) {
+  // Slightly over 1 so a nest fills its cell and reads as built there, rather
+  // than as a small object dropped on the grass. Rank adds a little heft on top
+  // of the gear — kept small deliberately, since a guardian already reaches the
+  // cell edge at rank 1 and more growth spills onto vertical neighbours.
+  const bulk = 1.16 + (level - 1) * 0.02;
+  context.scale(bulk, bulk);
+  context.save();
+  context.translate(0, 4);
+  drawNest(context, kind, elapsed, phase, level);
+  context.restore();
+  // The guardian perches on the nest rim, overlapping it so the two read as
+  // one object rather than a sprite floating over scenery.
+  context.translate(4, GUARDIAN_PERCH[kind]);
+  context.scale(0.58, 0.58);
+  drawGuardian(context, kind, elapsed, phase, level);
+}
+
+function drawTowerAt(
+  context: CanvasRenderingContext2D,
+  kind: TowerKind,
+  x: number,
+  y: number,
+  elapsed: number,
+  phase: number,
+  alpha: number,
+  level = 1,
+) {
+  context.save();
+  context.globalAlpha = alpha;
+  drawInCell(context, x, y, () => paintTower(context, kind, elapsed, phase, level));
+  context.restore();
+}
+
+/**
+ * Small standalone canvas that paints one of the vector sprites for the UI.
+ * `animate` off paints a single frame — the leaderboard mini-board shows up to
+ * 200 cells at once and doesn't need a loop per tower.
+ */
+function ArtIcon({
+  paint,
+  size = 34,
+  label,
+  animate = true,
+}: {
+  paint: (context: CanvasRenderingContext2D, elapsed: number) => void;
+  size?: number;
+  label?: string;
+  animate?: boolean;
+}) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const paintRef = useRef(paint);
+  paintRef.current = paint;
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const ratio = window.devicePixelRatio || 1;
+    let frame = 0;
+    const render = (time: number) => {
+      const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
+      const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      const box = width / 100;
+      context.setTransform(box, 0, 0, box, width / 2, height / 2);
+      context.clearRect(-50, -50, 100, 100);
+      paintRef.current(context, time / 1000);
+      if (animate) frame = requestAnimationFrame(render);
+    };
+    frame = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(frame);
+  }, [animate]);
+
+  return (
+    <canvas
+      ref={ref}
+      className="art-icon"
+      style={{ width: size, height: size }}
+      role={label ? "img" : "presentation"}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    />
+  );
+}
+
+function BlightIcon({ invader, size }: { invader: Invader; size?: number }) {
+  return (
+    <ArtIcon
+      size={size}
+      label={invader.name}
+      paint={(context, elapsed) =>
+        drawBlightling(context, invader.art, elapsed, invader.unlock * 1.3, 1)
+      }
+    />
+  );
+}
+
+function TowerIcon({
+  kind,
+  size,
+  animate,
+  level = 1,
+}: {
+  kind: TowerKind;
+  size?: number;
+  animate?: boolean;
+  level?: number;
+}) {
+  return (
+    <ArtIcon
+      size={size}
+      animate={animate}
+      paint={(context, elapsed) => paintTower(context, kind, elapsed, 0, level)}
+    />
+  );
 }
 
 function RunDetails({ run }: { run: LeaderboardRun }) {
@@ -895,7 +1046,12 @@ function RunDetails({ run }: { run: LeaderboardRun }) {
             >
               {tower ? (
                 <>
-                  <img src={TOWER_DATA[tower.kind].image} alt="" />
+                  <TowerIcon
+                    kind={tower.kind}
+                    size={22}
+                    animate={false}
+                    level={tower.level}
+                  />
                   <b>{tower.level}</b>
                 </>
               ) : endpoint === "rift" ? "✦" : endpoint === "heartwood" ? "♥" : null}
@@ -979,7 +1135,7 @@ export default function NatureDefenseGame({
     initial.bestWave = Math.max(bestWave, initial.bestWave);
     gameRef.current = initial;
   }
-  const imagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const renderScaleRef = useRef(1);
   const hoverRef = useRef<Point | null>(null);
   const selectedKindRef = useRef<TowerKind>("thorn");
   const selectedSpellRef = useRef<SpellKind | null>(null);
@@ -1044,23 +1200,24 @@ export default function NatureDefenseGame({
     movingCellRef.current = movingCell;
   }, [movingCell]);
 
+  // The board is vector-drawn, so the backing store has to match the real
+  // display pixels or everything blurs — CSS stretches the canvas to fit.
   useEffect(() => {
-    const allImages = [
-      ...BLIGHTLINGS.map(invaderImagePath),
-      invaderImagePath(BOSS),
-      ...TOWER_ORDER.flatMap((kind) => [
-        TOWER_DATA[kind].image,
-        TOWER_DATA[kind].guardian,
-      ]),
-      "/assets/blight-sprites/blight-atlas-v6.png",
-      "/assets/endpoints/blight-rift.png",
-      "/assets/endpoints/heartwood.png",
-    ];
-    for (const source of allImages) {
-      const image = new Image();
-      image.src = source;
-      imagesRef.current.set(source, image);
-    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const resize = () => {
+      const ratio = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
+      const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
+      if (canvas.width === width && canvas.height === height) return;
+      canvas.width = width;
+      canvas.height = height;
+      renderScaleRef.current = width / WIDTH;
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
+    return () => observer.disconnect();
   }, []);
 
   const syncBest = useCallback((wave: number) => {
@@ -1199,7 +1356,6 @@ export default function NatureDefenseGame({
       if (!target) return false;
 
       const targetPoint = { x: target.x, y: target.y };
-      const base = TOWER_DATA[tower.kind];
       if (tower.kind === "boulder") {
         const radius =
           1.02 +
@@ -1218,10 +1374,10 @@ export default function NatureDefenseGame({
         game.projectiles.push({
           from,
           to: targetPoint,
-          color: base.color,
+          kind: "boulder",
           age: 0,
-          duration: 0.22,
-          width: 5,
+          duration: 0.46,
+          seed: game.rng(),
           arc: true,
         });
       } else if (tower.kind === "lightning") {
@@ -1245,10 +1401,10 @@ export default function NatureDefenseGame({
             game.projectiles.push({
               from: chainFrom,
               to: currentPoint,
-              color: base.color,
+              kind: "lightning",
               age: 0,
-              duration: 0.14,
-              width: cast === 0 ? 3 : 5,
+              duration: 0.26,
+              seed: game.rng(),
             });
             chainFrom = currentPoint;
             current =
@@ -1297,10 +1453,10 @@ export default function NatureDefenseGame({
         game.projectiles.push({
           from,
           to: targetPoint,
-          color: base.color,
+          kind: "frost",
           age: 0,
-          duration: 0.17,
-          width: 4,
+          duration: 0.36,
+          seed: game.rng(),
         });
       } else {
         let hits = 1;
@@ -1316,10 +1472,10 @@ export default function NatureDefenseGame({
         game.projectiles.push({
           from,
           to: targetPoint,
-          color: base.color,
+          kind: "thorn",
           age: 0,
-          duration: 0.17,
-          width: hits === 3 ? 5 : 2.5,
+          duration: 0.32,
+          seed: game.rng(),
         });
       }
       return true;
@@ -1516,66 +1672,34 @@ export default function NatureDefenseGame({
     const context = canvas.getContext("2d");
     if (!context) return;
     const game = gameRef.current;
+    const scale = renderScaleRef.current;
+    context.setTransform(scale, 0, 0, scale, 0, 0);
     context.clearRect(0, 0, WIDTH, HEIGHT);
-    context.imageSmoothingEnabled = false;
 
-    context.fillStyle = "#466c36";
-    context.fillRect(0, 0, WIDTH, HEIGHT);
-    for (let y = 0; y < ROWS; y += 1) {
-      for (let x = 0; x < COLS; x += 1) {
-        context.fillStyle = (x + y) % 2 === 0 ? "#507a3c" : "#4b7438";
-        context.fillRect(x * CELL, y * CELL, CELL, CELL);
-        if ((x * 17 + y * 29) % 11 === 0) {
-          context.fillStyle = "#6f984e";
-          context.fillRect(x * CELL + 8, y * CELL + 10, 3, 6);
-          context.fillRect(x * CELL + 13, y * CELL + 14, 3, 4);
-        }
-      }
-    }
+    drawGrass(context, COLS, ROWS, CELL, game.elapsed);
 
-    context.strokeStyle = "rgba(23, 49, 27, .2)";
-    context.lineWidth = 1;
-    for (let x = 0; x <= COLS; x += 1) {
-      context.beginPath();
-      context.moveTo(x * CELL + 0.5, 0);
-      context.lineTo(x * CELL + 0.5, HEIGHT);
-      context.stroke();
-    }
-    for (let y = 0; y <= ROWS; y += 1) {
-      context.beginPath();
-      context.moveTo(0, y * CELL + 0.5);
-      context.lineTo(WIDTH, y * CELL + 0.5);
-      context.stroke();
-    }
-
-    const entryY = START.y * CELL;
-    const riftImage = imagesRef.current.get("/assets/endpoints/blight-rift.png");
-    if (riftImage?.complete) {
-      context.drawImage(riftImage, START.x * CELL, entryY, CELL, CELL);
-    }
-
-    const cityX = CITY.x * CELL;
-    const cityY = CITY.y * CELL;
-    const heartwoodImage = imagesRef.current.get("/assets/endpoints/heartwood.png");
-    if (heartwoodImage?.complete) {
-      context.drawImage(heartwoodImage, cityX, cityY, CELL, CELL);
-    }
+    // Endpoints overflow their cell a little on purpose — they're landmarks.
+    drawInCell(context, START.x, START.y, () => {
+      context.scale(1.2, 1.2);
+      drawRift(context, game.elapsed);
+    });
+    drawInCell(context, CITY.x, CITY.y, () => {
+      context.scale(1.28, 1.28);
+      drawHeartwood(context, game.elapsed, Math.max(0, game.health / MAX_HEALTH));
+    });
 
     for (const [key, tower] of game.towers) {
       const [x, y] = key.split(",").map(Number);
-      const image = imagesRef.current.get(TOWER_DATA[tower.kind].image);
-      if (image?.complete) {
-        context.drawImage(image, x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
-      }
-      const guardian = imagesRef.current.get(TOWER_DATA[tower.kind].guardian);
-      if (guardian?.complete) {
-        context.drawImage(guardian, x * CELL + 17, y * CELL + 13, 22, 22);
-      }
+      const phase = x * 1.7 + y * 2.3;
+      drawTowerAt(context, tower.kind, x, y, game.elapsed, phase, 1, tower.level);
       context.fillStyle = TOWER_DATA[tower.kind].color;
+      context.strokeStyle = "rgba(255, 250, 240, .85)";
+      context.lineWidth = 1;
       for (let level = 0; level < tower.level; level += 1) {
         context.beginPath();
-        context.arc(x * CELL + 6 + level * 7, y * CELL + 35, 2.2, 0, Math.PI * 2);
+        context.arc(x * CELL + 7 + level * 7, y * CELL + 35, 2.4, 0, Math.PI * 2);
         context.fill();
+        context.stroke();
       }
     }
 
@@ -1635,28 +1759,15 @@ export default function NatureDefenseGame({
           );
           context.stroke();
           context.setLineDash([]);
-          const ghost = imagesRef.current.get(selectedTower.image);
-          context.globalAlpha = 0.72;
-          if (ghost?.complete) {
-            context.drawImage(
-              ghost,
-              hover.x * CELL + 1,
-              hover.y * CELL + 1,
-              CELL - 2,
-              CELL - 2,
-            );
-          }
-          const guardian = imagesRef.current.get(selectedTower.guardian);
-          if (guardian?.complete) {
-            context.drawImage(
-              guardian,
-              hover.x * CELL + 17,
-              hover.y * CELL + 13,
-              22,
-              22,
-            );
-          }
-          context.globalAlpha = 1;
+          drawTowerAt(
+            context,
+            selectedKindRef.current,
+            hover.x,
+            hover.y,
+            game.elapsed,
+            0,
+            0.62,
+          );
         }
       }
     }
@@ -1746,17 +1857,11 @@ export default function NatureDefenseGame({
 
     const sortedEnemies = [...game.enemies].sort((a, b) => a.y - b.y);
     for (const enemy of sortedEnemies) {
-      const atlas = imagesRef.current.get("/assets/blight-sprites/blight-atlas-v6.png");
-      const fallback = imagesRef.current.get(invaderImagePath(enemy.invader));
       const next = enemy.path[enemy.pathIndex + 1];
-      const dx = next ? next.x + 0.5 - enemy.x : 1;
-      const dy = next ? next.y + 0.5 - enemy.y : 0;
-      const direction = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 1 : 2) : (dy < 0 ? 3 : 0);
-      const frame = Math.abs(Math.floor(game.elapsed * 5 + enemy.id)) % 3;
-      const spriteSize = enemy.invader === BOSS ? 40 : 34;
-      const drawX = enemy.x * CELL - spriteSize / 2;
-      const bob = Math.sin(game.elapsed * 7 + enemy.id) * 0.65;
-      const drawY = enemy.y * CELL - spriteSize / 2 + bob;
+      const facing = next && next.x + 0.5 < enemy.x ? -1 : 1;
+      const size = enemy.invader === BOSS ? 46 : 34;
+      const bob = Math.sin(game.elapsed * 7 + enemy.id) * 1.2;
+
       if (enemy.stunUntil > game.elapsed || enemy.blindUntil > game.elapsed) {
         context.fillStyle = enemy.blindUntil > game.elapsed
           ? "rgba(255, 224, 92, .34)"
@@ -1771,56 +1876,32 @@ export default function NatureDefenseGame({
         context.arc(enemy.x * CELL, enemy.y * CELL, 16, 0, Math.PI * 2);
         context.fill();
       }
-      if (atlas?.complete) {
-        const sourceWidth = atlas.naturalWidth / 18;
-        const sourceHeight = atlas.naturalHeight / 4;
-        context.drawImage(
-          atlas,
-          (enemy.invader.sprite * 3 + frame) * sourceWidth,
-          direction * sourceHeight,
-          sourceWidth,
-          sourceHeight,
-          drawX,
-          drawY,
-          spriteSize,
-          spriteSize,
-        );
-      } else if (fallback?.complete) {
-        context.drawImage(fallback, drawX, drawY, spriteSize, spriteSize);
-      }
-      context.fillStyle = "#17251a";
-      context.fillRect(enemy.x * CELL - 13, enemy.y * CELL - 20, 26, 4);
-      context.fillStyle =
-        enemy.hp / enemy.maxHp > 0.45 ? "#d9ef71" : "#f47a62";
-      context.fillRect(
-        enemy.x * CELL - 13,
-        enemy.y * CELL - 20,
-        26 * Math.max(0, enemy.hp / enemy.maxHp),
-        4,
+
+      context.save();
+      context.translate(enemy.x * CELL, enemy.y * CELL + bob);
+      context.scale(size / 100, size / 100);
+      drawBlightling(context, enemy.invader.art, game.elapsed, enemy.id * 0.7, facing);
+      context.restore();
+
+      drawHealthBar(
+        context,
+        enemy.x * CELL,
+        enemy.y * CELL - size / 2 - 8,
+        Math.max(0, enemy.hp / enemy.maxHp),
+        enemy.invader === BOSS ? 34 : 26,
       );
     }
 
     for (const projectile of game.projectiles) {
-      const progress = projectile.age / projectile.duration;
-      const from = { x: projectile.from.x * CELL, y: projectile.from.y * CELL };
-      const to = { x: projectile.to.x * CELL, y: projectile.to.y * CELL };
-      context.globalAlpha = Math.max(0, 1 - progress);
-      context.strokeStyle = projectile.color;
-      context.lineWidth = projectile.width;
-      context.beginPath();
-      context.moveTo(from.x, from.y);
-      if (projectile.arc) {
-        context.quadraticCurveTo(
-          (from.x + to.x) / 2,
-          Math.min(from.y, to.y) - 34,
-          to.x,
-          to.y,
-        );
-      } else {
-        context.lineTo(to.x, to.y);
-      }
-      context.stroke();
-      context.globalAlpha = 1;
+      drawShot(
+        context,
+        projectile.kind,
+        { x: projectile.from.x * CELL, y: projectile.from.y * CELL },
+        { x: projectile.to.x * CELL, y: projectile.to.y * CELL },
+        Math.min(1, projectile.age / projectile.duration),
+        projectile.seed,
+        projectile.arc ?? false,
+      );
     }
   }, []);
 
@@ -1983,7 +2064,7 @@ export default function NatureDefenseGame({
               : enemy.maxHp * 0.28;
           damageEnemyWithSpell(game, enemy, damage);
         }
-        game.health = Math.min(20, game.health + 3 + mercyRank * 2);
+        game.health = Math.min(MAX_HEALTH, game.health + 3 + mercyRank * 2);
         game.spellEffects.push({
           kind: "bloom",
           startedAt: game.elapsed,
@@ -2512,7 +2593,7 @@ export default function NatureDefenseGame({
               <div className="stat" ref={healthRef}>
                 <b className={game.health <= 5 ? "danger-value" : ""}>
                   {game.health}
-                  <small>/20</small>
+                  <small>/{MAX_HEALTH}</small>
                 </b>
                 <i>heartwood</i>
               </div>
@@ -2637,12 +2718,9 @@ export default function NatureDefenseGame({
               </span>
               <div>
                 {nextInvaders.map((invader) => (
-                  <img
-                    key={invader.name}
-                    src={invaderImagePath(invader)}
-                    alt={invader.name}
-                    title={invader.name}
-                  />
+                  <span key={invader.name} title={invader.name}>
+                    <BlightIcon invader={invader} size={26} />
+                  </span>
                 ))}
               </div>
             </div>
@@ -2692,7 +2770,7 @@ export default function NatureDefenseGame({
                   <div className="wave-roster">
                     {waveAnnouncement.roster.map(({ invader, count }) => (
                       <span key={invader.name}>
-                        <img src={invaderImagePath(invader)} alt="" />
+                        <BlightIcon invader={invader} size={28} />
                         <b>{formatNumber(count)}×</b> {invader.name}
                       </span>
                     ))}
@@ -2769,6 +2847,13 @@ export default function NatureDefenseGame({
                     top: `${((selectedCell.y + 0.5) / ROWS) * 100}%`,
                   }}
                 >
+                  <span className="tower-portrait">
+                    <TowerIcon
+                      kind={inspectedTower.kind}
+                      size={44}
+                      level={inspectedTower.level}
+                    />
+                  </span>
                   <strong>{TOWER_DATA[inspectedTower.kind].name}</strong>
                   <span className="tower-level">Level {inspectedTower.level}/{MAX_TOWER_LEVEL}</span>
                   <span>
@@ -2914,8 +2999,7 @@ export default function NatureDefenseGame({
                       <small>{tower.cost}</small>
                     </span>
                     <span className="dock-art">
-                      <img src={tower.image} alt="" />
-                      <img src={tower.guardian} alt="" />
+                      <TowerIcon kind={kind} size={40} />
                     </span>
                     <span className="tile-name">{tower.name}</span>
                     <span

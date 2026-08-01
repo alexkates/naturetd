@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.2.3",
+    "title": "Describe this release",
+    "publishedAt": "2026-08-01",
+    "summary": "Summarize what changed for returning players.",
+    "categories": [
+      {
+        "name": "New",
+        "items": [
+          "Replace this with a player-facing change."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.2.2",
     "title": "Leaderboard Restore",
     "publishedAt": "2026-08-01",

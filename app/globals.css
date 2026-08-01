@@ -97,32 +97,11 @@ canvas:focus-visible {
   line-height: 1.55;
 }
 
-.release-category-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin: 22px 0;
-}
-
-.release-category-grid section {
-  padding: 14px;
-  border: 1px solid rgba(104, 74, 130, 0.2);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.54);
-}
-
-.release-category-grid h3 {
-  margin: 0 0 8px;
-  color: #76518e;
-  font-size: var(--font-size-body);
-  text-transform: uppercase;
-}
-
-.release-category-grid ul {
+.version-change-list {
   display: grid;
   gap: 7px;
   padding-left: 18px;
-  margin: 0;
+  margin: 22px 0;
   color: #65556e;
   font-size: var(--font-size-body-sm);
   line-height: 1.4;
@@ -136,7 +115,6 @@ canvas:focus-visible {
   .whats-new-backdrop { align-items: start; padding: 12px; }
   .whats-new-version { position: static; width: max-content; margin-bottom: 16px; }
   .whats-new-modal h2 { padding-right: 0; }
-  .release-category-grid { grid-template-columns: 1fr; }
 }
 
 .brand-lockup {

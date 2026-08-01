@@ -19,18 +19,17 @@ Next.js 16 (App Router) game client backed by Supabase for auth and persistence.
 - `supabase/migrations/` — schema, source of truth for the DB (see below)
 - `tests/` — `bun test` against a production build (see [verification.md](verification.md))
 
-## Releases and What's New
+## Versions and What's New
 
-`app/releases.json` is the player-facing release history. Its newest version
-must match `package.json`. Returning players see that release in a modal until
-its version is written to `profiles.last_seen_release_id`; the header sparkle
-button reopens it later. Release dismissal is stored in Supabase so it follows
-the account across devices.
+`app/versions.json` is the player-facing version history. The newest entry is
+the update shown to returning players until its ID is written to
+`profiles.last_seen_version_id`; the header sparkle button reopens it later.
+Dismissal is stored in Supabase so it follows the account across devices.
 
-The committed `.githooks/pre-push` hook compares the commits being pushed with
-the remote ref. Changes under `app/`, `lib/`, `public/`, or `supabase/` require
-both a package version bump and a changed `app/releases.json`. Static release
-validation also runs as part of `bun run test`.
+`bun run version` is the only command that creates a player announcement. It
+uses the commits since the latest `vX.Y.Z` tag to generate concise notes, then
+commits the metadata, creates the next patch tag, and pushes both. Ordinary
+pushes do not change the current announcement or show the modal again.
 
 ## Board art
 

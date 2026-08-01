@@ -11,40 +11,35 @@ bun run lint          # eslint .
 bun run test          # bun run build && bun test tests — builds, then exercises the production server
 ```
 
-## Release workflow
+## Version workflow
 
-Enable the committed push gate once per clone:
-
-```bash
-bun run hooks:install
-```
-
-Prepare a patch release (or pass `minor` / `major`):
+Push fixes and small changes normally:
 
 ```bash
-bun run release:new
+git push
 ```
 
-Edit the generated entry in `app/releases.json`, then validate it with:
+When you want to publish a player-facing changelog, set `OPENAI_API_KEY` and
+run one command from a clean worktree:
 
 ```bash
-bun run release:check
+bun run version
 ```
 
-Preview the current release popup locally without recording it as dismissed:
+It summarizes commits since the previous `vX.Y.Z` tag with AI, appends the
+notes to `app/versions.json`, creates the next patch version, commits it,
+creates an annotated tag, and pushes both. The new entry appears as a What's
+New modal on a player's next login; ordinary pushes do not retrigger it.
+On the first run, before any `vX.Y.Z` tag exists, it summarizes the repository
+history. Set `VERSION_MODEL` only if you need to override the default AI model.
+
+Preview the current modal locally without recording it as seen:
 
 ```text
-http://localhost:3999/?release-preview=1
+http://localhost:3999/?version-preview=1
 ```
 
-This works for new and returning profiles and leaves
-`last_seen_release_id` unchanged.
-
-Normal `git push` commands run this automatically. A push containing
-player-facing changes is rejected unless `package.json` and
-`app/releases.json` were both updated.
-
-The leaderboard includes runs from game version 0.2.0 onward. New releases do
+The leaderboard includes runs from game version 0.2.0 onward. New versions do
 not reset it; every run retains its version for future profile history.
 
 ## Supabase CLI

@@ -1,8 +1,0 @@
-#!/bin/sh
-set -eu
-
-while read -r local_ref local_sha remote_ref remote_sha; do
-  case "$local_ref" in
-    refs/heads/*) bun run release:check -- "$local_sha" "$remote_sha" ;;
-  esac
-done

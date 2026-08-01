@@ -1,6 +1,6 @@
 {
   "name": "natures-last-stand",
-  "version": "0.2.3",
+  "version": "0.2.2",
   "private": true,
   "packageManager": "bun@1.3.1",
   "engines": {
@@ -10,11 +10,9 @@
     "dev": "next dev --port 3999",
     "build": "next build",
     "start": "next start",
-    "test": "bun run release:check && bun run build && bun test tests",
+    "test": "bun run build && bun test tests",
     "lint": "eslint . --ignore-pattern .next",
-    "release:check": "bun scripts/release-check.ts",
-    "release:new": "bun scripts/release-new.ts",
-    "hooks:install": "sh scripts/install-hooks.sh"
+    "version": "bun scripts/version.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

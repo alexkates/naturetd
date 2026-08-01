@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getLeaderboard } from "@/lib/data";
-import { CURRENT_RELEASE } from "@/app/releases";
+import { CURRENT_VERSION } from "@/app/versions";
 import { createClient } from "@/lib/supabase/server";
 import type { GameSaveState, LeaderboardRun } from "@/lib/types";
 
@@ -68,16 +68,16 @@ export async function saveDisplayName(
   }
 }
 
-export async function markReleaseSeen(releaseId: string): Promise<ActionResult> {
-  if (!/^\d+\.\d+\.\d+$/.test(releaseId)) {
-    return { ok: false, error: "Invalid release identifier." };
+export async function markVersionSeen(versionId: string): Promise<ActionResult> {
+  if (!/^\d+\.\d+\.\d+$/.test(versionId)) {
+    return { ok: false, error: "Invalid version identifier." };
   }
 
   try {
     const { supabase, user } = await requireUser();
     const { error } = await supabase
       .from("profiles")
-      .update({ last_seen_release_id: releaseId })
+      .update({ last_seen_version_id: versionId })
       .eq("id", user.id);
     return error ? { ok: false, error: error.message } : { ok: true };
   } catch (error) {
@@ -132,7 +132,7 @@ export async function submitRun(run: RunSubmission): Promise<SubmitRunResult> {
       towers: run.towers,
       buffs: run.buffs,
       stats: run.stats,
-      game_version: CURRENT_RELEASE.version,
+      game_version: CURRENT_VERSION.version,
     });
     if (error) return { ok: false, error: error.message };
 

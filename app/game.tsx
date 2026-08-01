@@ -12,7 +12,7 @@ import {
 
 import {
   fetchLeaderboard,
-  markReleaseSeen,
+  markVersionSeen,
   saveDisplayName,
   saveGameState,
   signOut,
@@ -29,7 +29,7 @@ import {
   drawRift,
   drawShot,
 } from "@/app/art";
-import { CURRENT_RELEASE } from "@/app/releases";
+import { CURRENT_VERSION } from "@/app/versions";
 import type {
   BuffKind,
   GameSaveState,
@@ -1128,7 +1128,7 @@ function CurrentRunOverview({ game }: { game: Game }) {
           <p className="eyebrow">Current stand</p>
           <h2 id="run-overview-title">Wave {formatNumber(game.wave)} overview</h2>
         </div>
-        <span><kbd>Tab</kbd> release to close</span>
+        <span><kbd>Tab</kbd> let go to close</span>
       </header>
 
       <div className="run-overview-vitals">
@@ -1213,7 +1213,7 @@ type GameProps = {
   savedGame: GameSaveState | null;
   initialLeaderboard: LeaderboardRun[];
   bestWave: number;
-  lastSeenReleaseId: string | null;
+  lastSeenVersionId: string | null;
 };
 
 export default function NatureDefenseGame({
@@ -1223,7 +1223,7 @@ export default function NatureDefenseGame({
   savedGame,
   initialLeaderboard,
   bestWave,
-  lastSeenReleaseId,
+  lastSeenVersionId,
 }: GameProps) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1235,7 +1235,7 @@ export default function NatureDefenseGame({
   const gameRef = useRef<Game>(null as unknown as Game);
   if (!gameRef.current) {
     const initial = savedGame ? restoreGame(savedGame) : createGame();
-    if (!isNewProfile && lastSeenReleaseId !== CURRENT_RELEASE.version) {
+    if (!isNewProfile && lastSeenVersionId !== CURRENT_VERSION.version) {
       initial.paused = true;
     }
     initial.bestWave = Math.max(bestWave, initial.bestWave);
@@ -1249,7 +1249,7 @@ export default function NatureDefenseGame({
   const selectedCellRef = useRef<Point | null>(null);
   const helpPausedRef = useRef(false);
   const introPausedRef = useRef(false);
-  const releasePausedRef = useRef(false);
+  const versionPausedRef = useRef(false);
   const frameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const [, setRevision] = useState(0);
@@ -1258,10 +1258,10 @@ export default function NatureDefenseGame({
   const [selectedSpell, setSelectedSpell] = useState<SpellKind | null>(null);
   const [selectedCell, setSelectedCell] = useState<Point | null>(null);
   const [whatsNewOpen, setWhatsNewOpen] = useState(
-    !isNewProfile && lastSeenReleaseId !== CURRENT_RELEASE.version,
+    !isNewProfile && lastSeenVersionId !== CURRENT_VERSION.version,
   );
-  const [releasePreview, setReleasePreview] = useState(false);
-  const [releaseDismissError, setReleaseDismissError] = useState("");
+  const [versionPreview, setVersionPreview] = useState(false);
+  const [versionDismissError, setVersionDismissError] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
@@ -1298,31 +1298,31 @@ export default function NatureDefenseGame({
   }, [refresh]);
 
   const openWhatsNew = useCallback(() => {
-    releasePausedRef.current = gameRef.current.paused;
+    versionPausedRef.current = gameRef.current.paused;
     gameRef.current.paused = true;
-    setReleasePreview(false);
+    setVersionPreview(false);
     setWhatsNewOpen(true);
     refresh();
   }, [refresh]);
 
   const dismissWhatsNew = useCallback(() => {
     setWhatsNewOpen(false);
-    gameRef.current.paused = releasePausedRef.current;
-    if (!releasePreview) {
-      void markReleaseSeen(CURRENT_RELEASE.version).then((result) => {
-        if (!result.ok) setReleaseDismissError(result.error);
+    gameRef.current.paused = versionPausedRef.current;
+    if (!versionPreview) {
+      void markVersionSeen(CURRENT_VERSION.version).then((result) => {
+        if (!result.ok) setVersionDismissError(result.error);
       });
     }
-    setReleasePreview(false);
+    setVersionPreview(false);
     refresh();
-  }, [refresh, releasePreview]);
+  }, [refresh, versionPreview]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("release-preview") !== "1") return;
-    releasePausedRef.current = gameRef.current.paused;
+    if (params.get("version-preview") !== "1") return;
+    versionPausedRef.current = gameRef.current.paused;
     gameRef.current.paused = true;
-    setReleasePreview(true);
+    setVersionPreview(true);
     setWhatsNewOpen(true);
     refresh();
   }, [refresh]);
@@ -2499,9 +2499,9 @@ export default function NatureDefenseGame({
     } catch {
       seen = false;
     }
-    const releasePreviewRequested =
-      new URLSearchParams(window.location.search).get("release-preview") === "1";
-    if (seen || whatsNewOpen || releasePreviewRequested) return;
+    const versionPreviewRequested =
+      new URLSearchParams(window.location.search).get("version-preview") === "1";
+    if (seen || whatsNewOpen || versionPreviewRequested) return;
     const game = gameRef.current;
     introPausedRef.current = game.paused;
     game.paused = true;
@@ -2618,7 +2618,7 @@ export default function NatureDefenseGame({
       } else if (event.key === "Escape") {
         if (helpOpen) closeHelp();
         else if (selectedSpellRef.current) cancelSpell();
-        else if (gameRef.current.waveAnnouncement?.expiresAt > Date.now()) {
+        else if ((gameRef.current.waveAnnouncement?.expiresAt ?? 0) > Date.now()) {
           gameRef.current.waveAnnouncement = null;
           refresh();
         }
@@ -2672,24 +2672,17 @@ export default function NatureDefenseGame({
         <div className="whats-new-backdrop" role="presentation">
           <section className="whats-new-modal" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
             <div className="whats-new-version">
-              {releasePreview ? "Preview · " : ""}Version {CURRENT_RELEASE.version}
+              {versionPreview ? "Preview · " : ""}Version {CURRENT_VERSION.version}
             </div>
             <p className="eyebrow">What&apos;s new</p>
-            <h2 id="whats-new-title">{CURRENT_RELEASE.title}</h2>
-            <p className="whats-new-summary">{CURRENT_RELEASE.summary}</p>
-            <div className="release-category-grid">
-              {CURRENT_RELEASE.categories.map((category) => (
-                <section key={category.name}>
-                  <h3>{category.name}</h3>
-                  <ul>
-                    {category.items.map((item) => <li key={item}>{item}</li>)}
-                  </ul>
-                </section>
-              ))}
-            </div>
-            {releaseDismissError ? <p className="form-error">{releaseDismissError}</p> : null}
+            <h2 id="whats-new-title">{CURRENT_VERSION.title}</h2>
+            <p className="whats-new-summary">{CURRENT_VERSION.summary}</p>
+            <ul className="version-change-list">
+              {CURRENT_VERSION.changes.map((change) => <li key={change}>{change}</li>)}
+            </ul>
+            {versionDismissError ? <p className="form-error">{versionDismissError}</p> : null}
             <button className="primary-action" onClick={dismissWhatsNew}>
-              {releasePreview ? "Close preview" : "Enter the grove"}
+              {versionPreview ? "Close preview" : "Enter the grove"}
             </button>
           </section>
         </div>
@@ -2780,7 +2773,7 @@ export default function NatureDefenseGame({
                 <button
                   onClick={openWhatsNew}
                   aria-label="Open What's New"
-                  title={`What's New · v${CURRENT_RELEASE.version}`}
+                  title={`What's New · v${CURRENT_VERSION.version}`}
                 >
                   ✨
                 </button>
@@ -3451,7 +3444,7 @@ export default function NatureDefenseGame({
             <footer className="profile-footer">
               <span>
                 Signed in as {email}
-                <small className="profile-version">Game version {CURRENT_RELEASE.version}</small>
+                <small className="profile-version">Game version {CURRENT_VERSION.version}</small>
               </span>
               <div>
                 {!isNewProfile && (

@@ -2464,6 +2464,14 @@ body {
   background: #f3cbd2;
 }
 
+.profile-version {
+  display: block;
+  margin-top: 3px;
+  color: #96849f;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: var(--font-size-micro);
+}
+
 .tower-level {
   color: #a66b16 !important;
   font-family: "SFMono-Regular", Consolas, monospace;

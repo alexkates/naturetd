@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.2.1",
+    "title": "A Fresh Leaderboard",
+    "publishedAt": "2026-08-01",
+    "summary": "The leaderboard now starts fresh whenever the game rules change, while every past run remains part of your grove's history.",
+    "categories": [
+      {
+        "name": "Leaderboard",
+        "items": [
+          "Scores now compete only against runs played on the current game version.",
+          "Past runs are safely kept for future profile history."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.2.0",
     "title": "A Sharper Last Stand",
     "publishedAt": "2026-07-31",

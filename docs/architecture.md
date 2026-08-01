@@ -96,7 +96,12 @@ Three tables, defined in `supabase/migrations/20260727000000_auth_profiles_games
 
 - `profiles` — one row per account; unique (case-insensitive) `display_name`, 2–24 chars. This is the name shown on the leaderboard.
 - `game_saves` — one resumable snapshot per player, autosaved between waves.
-- `game_runs` — every finished run. The leaderboard is the top 10 by wave/kills/damage/time.
+- `game_runs` — every finished run, tagged with the game version that created
+  it. This preserves player history across balance changes.
+- `leaderboard` — a version-filtered view over `game_runs`; it contains runs
+  from game version 0.2.0 onward and powers the top 10 ranking. This preserves
+  pre-0.2.0 runs for profile history without letting them compete with the
+  rules introduced in 0.2.0.
 
 Row-level security: saves are private to their owner; profiles and finished runs are publicly readable (needed for the leaderboard).
 

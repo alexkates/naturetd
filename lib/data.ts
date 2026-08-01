@@ -19,7 +19,7 @@ type RunRow = {
   towers: SavedTower[] | null;
   buffs: BuffKind[] | null;
   stats: RunStats | null;
-  profiles: { display_name: string } | { display_name: string }[] | null;
+  name: string | null;
 };
 
 const EMPTY_STATS: RunStats = {
@@ -38,10 +38,9 @@ const EMPTY_STATS: RunStats = {
 };
 
 function toLeaderboardRun(row: RunRow): LeaderboardRun {
-  const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
   return {
     id: row.id,
-    name: profile?.display_name ?? "Unknown guardian",
+    name: row.name ?? "Unknown guardian",
     playedAt: row.played_at,
     wave: row.wave,
     seed: row.seed,
@@ -72,9 +71,9 @@ export async function getLeaderboard(): Promise<LeaderboardRun[]> {
   if (!supabaseConfigured) return [];
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("game_runs")
+    .from("leaderboard")
     .select(
-      "id, played_at, wave, seed, towers, buffs, stats, profiles(display_name)",
+      "id, played_at, wave, seed, towers, buffs, stats, name",
     )
     .gt("kills", 0)
     .order("kills", { ascending: false })

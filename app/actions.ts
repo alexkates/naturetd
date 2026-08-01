@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getLeaderboard } from "@/lib/data";
+import { CURRENT_RELEASE } from "@/app/releases";
 import { createClient } from "@/lib/supabase/server";
 import type { GameSaveState, LeaderboardRun } from "@/lib/types";
 
@@ -131,6 +132,7 @@ export async function submitRun(run: RunSubmission): Promise<SubmitRunResult> {
       towers: run.towers,
       buffs: run.buffs,
       stats: run.stats,
+      game_version: CURRENT_RELEASE.version,
     });
     if (error) return { ok: false, error: error.message };
 

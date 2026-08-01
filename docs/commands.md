@@ -44,6 +44,9 @@ Normal `git push` commands run this automatically. A push containing
 player-facing changes is rejected unless `package.json` and
 `app/releases.json` were both updated.
 
+The leaderboard includes runs from game version 0.2.0 onward. New releases do
+not reset it; every run retains its version for future profile history.
+
 ## Supabase CLI
 
 ```bash

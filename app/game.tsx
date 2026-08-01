@@ -3445,7 +3445,10 @@ export default function NatureDefenseGame({
               )}
             </form>
             <footer className="profile-footer">
-              <span>Signed in as {email}</span>
+              <span>
+                Signed in as {email}
+                <small className="profile-version">Game version {CURRENT_RELEASE.version}</small>
+              </span>
               <div>
                 {!isNewProfile && (
                   <button type="button" onClick={() => setProfileOpen(false)}>

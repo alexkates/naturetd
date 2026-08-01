@@ -2618,6 +2618,10 @@ export default function NatureDefenseGame({
       } else if (event.key === "Escape") {
         if (helpOpen) closeHelp();
         else if (selectedSpellRef.current) cancelSpell();
+        else if (gameRef.current.waveAnnouncement?.expiresAt > Date.now()) {
+          gameRef.current.waveAnnouncement = null;
+          refresh();
+        }
         else if (cancelBuilding()) return;
         else setSelectedCell(null);
       }

@@ -1,0 +1,33 @@
+[
+  {
+    "version": "0.2.2",
+    "title": "Leaderboard restored",
+    "publishedAt": "2026-08-01",
+    "summary": "Completed runs now appear correctly on the leaderboard.",
+    "changes": [
+      "Fixed completed runs not appearing on the leaderboard."
+    ]
+  },
+  {
+    "version": "0.2.1",
+    "title": "A fresh leaderboard",
+    "publishedAt": "2026-08-01",
+    "summary": "The leaderboard now keeps past runs while comparing scores under the latest rules.",
+    "changes": [
+      "Past runs are preserved for future profile history.",
+      "Leaderboard scores now use the current ruleset."
+    ]
+  },
+  {
+    "version": "0.2.0",
+    "title": "A sharper last stand",
+    "publishedAt": "2026-07-31",
+    "summary": "Guardian balance and onboarding received a round of polish.",
+    "changes": [
+      "Boarstone attacks hit harder and cover more ground, but fire more slowly.",
+      "Selling a guardian now returns 75% of all gold invested.",
+      "Guardians can no longer be moved after they are planted.",
+      "The guided intro ends with a clear Got it action."
+    ]
+  }
+]

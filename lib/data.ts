@@ -62,7 +62,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, display_name")
+    .select("id, display_name, last_seen_release_id")
     .eq("id", userId)
     .maybeSingle();
   return data ?? null;

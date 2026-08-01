@@ -12,6 +12,7 @@ import {
 
 import {
   fetchLeaderboard,
+  markReleaseSeen,
   saveDisplayName,
   saveGameState,
   signOut,
@@ -28,6 +29,7 @@ import {
   drawRift,
   drawShot,
 } from "@/app/art";
+import { CURRENT_RELEASE } from "@/app/releases";
 import type {
   BuffKind,
   GameSaveState,
@@ -237,8 +239,8 @@ const TOWER_DATA: Record<
     color: "#e08c3c",
     tag: "Splash · heavy hit",
     description: "Boars scatter cleansing pollen",
-    damage: 15,
-    rate: 0.68,
+    damage: 18,
+    rate: 0.58,
     range: 3,
     hotkey: "3",
   },
@@ -462,7 +464,7 @@ const INTRO_STEPS = [
     id: "actions",
     label: "Live controls",
     title: "Build while the Blight moves",
-    body: "A wave arrives every 30 seconds. Space calls it early for bonus gold. Select a guardian and press U to upgrade or M to move it; press S between waves to sell it for a full refund.",
+    body: "A wave arrives every 30 seconds. Space calls it early for bonus gold. Select a guardian and press U to upgrade it; press S to sell it for a 75% refund.",
   },
 ] as const;
 const keyOf = (x: number, y: number) => `${x},${y}`;
@@ -1211,6 +1213,7 @@ type GameProps = {
   savedGame: GameSaveState | null;
   initialLeaderboard: LeaderboardRun[];
   bestWave: number;
+  lastSeenReleaseId: string | null;
 };
 
 export default function NatureDefenseGame({
@@ -1220,6 +1223,7 @@ export default function NatureDefenseGame({
   savedGame,
   initialLeaderboard,
   bestWave,
+  lastSeenReleaseId,
 }: GameProps) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1231,24 +1235,33 @@ export default function NatureDefenseGame({
   const gameRef = useRef<Game>(null as unknown as Game);
   if (!gameRef.current) {
     const initial = savedGame ? restoreGame(savedGame) : createGame();
+    if (!isNewProfile && lastSeenReleaseId !== CURRENT_RELEASE.version) {
+      initial.paused = true;
+    }
     initial.bestWave = Math.max(bestWave, initial.bestWave);
     gameRef.current = initial;
   }
   const renderScaleRef = useRef(1);
   const hoverRef = useRef<Point | null>(null);
   const selectedKindRef = useRef<TowerKind>("thorn");
+  const buildingRef = useRef(true);
   const selectedSpellRef = useRef<SpellKind | null>(null);
   const selectedCellRef = useRef<Point | null>(null);
-  const movingCellRef = useRef<Point | null>(null);
   const helpPausedRef = useRef(false);
   const introPausedRef = useRef(false);
+  const releasePausedRef = useRef(false);
   const frameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
   const [, setRevision] = useState(0);
   const [selectedKind, setSelectedKind] = useState<TowerKind>("thorn");
+  const [isBuilding, setIsBuilding] = useState(true);
   const [selectedSpell, setSelectedSpell] = useState<SpellKind | null>(null);
   const [selectedCell, setSelectedCell] = useState<Point | null>(null);
-  const [movingCell, setMovingCell] = useState<Point | null>(null);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(
+    !isNewProfile && lastSeenReleaseId !== CURRENT_RELEASE.version,
+  );
+  const [releasePreview, setReleasePreview] = useState(false);
+  const [releaseDismissError, setReleaseDismissError] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
@@ -1284,6 +1297,36 @@ export default function NatureDefenseGame({
     refresh();
   }, [refresh]);
 
+  const openWhatsNew = useCallback(() => {
+    releasePausedRef.current = gameRef.current.paused;
+    gameRef.current.paused = true;
+    setReleasePreview(false);
+    setWhatsNewOpen(true);
+    refresh();
+  }, [refresh]);
+
+  const dismissWhatsNew = useCallback(() => {
+    setWhatsNewOpen(false);
+    gameRef.current.paused = releasePausedRef.current;
+    if (!releasePreview) {
+      void markReleaseSeen(CURRENT_RELEASE.version).then((result) => {
+        if (!result.ok) setReleaseDismissError(result.error);
+      });
+    }
+    setReleasePreview(false);
+    refresh();
+  }, [refresh, releasePreview]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("release-preview") !== "1") return;
+    releasePausedRef.current = gameRef.current.paused;
+    gameRef.current.paused = true;
+    setReleasePreview(true);
+    setWhatsNewOpen(true);
+    refresh();
+  }, [refresh]);
+
   useEffect(() => {
     selectedKindRef.current = selectedKind;
   }, [selectedKind]);
@@ -1295,10 +1338,6 @@ export default function NatureDefenseGame({
   useEffect(() => {
     selectedCellRef.current = selectedCell;
   }, [selectedCell]);
-
-  useEffect(() => {
-    movingCellRef.current = movingCell;
-  }, [movingCell]);
 
   // The board is vector-drawn, so the backing store has to match the real
   // display pixels or everything blurs — CSS stretches the canvas to fit.
@@ -1458,7 +1497,7 @@ export default function NatureDefenseGame({
       const targetPoint = { x: target.x, y: target.y };
       if (tower.kind === "boulder") {
         const radius =
-          1.02 +
+          1.18 +
           tower.level * 0.12 +
           buffRank(game, "faultline") * 0.75;
         const damage =
@@ -1777,8 +1816,7 @@ export default function NatureDefenseGame({
     context.clearRect(0, 0, WIDTH, HEIGHT);
 
     drawGrass(context, COLS, ROWS, CELL, game.elapsed);
-
-    // Endpoints overflow their cell a little on purpose — they're landmarks.
+    // Endpoints overflow their cell a little on purpose.
     drawInCell(context, START.x, START.y, () => {
       context.scale(1.2, 1.2);
       drawRift(context, game.elapsed);
@@ -1831,20 +1869,18 @@ export default function NatureDefenseGame({
           }
         }
         context.setLineDash([]);
-      } else {
+      } else if (buildingRef.current) {
         const occupied = game.towers.has(keyOf(hover.x, hover.y));
         const forbidden =
           (hover.x === START.x && hover.y === START.y) ||
           (hover.x === CITY.x && hover.y === CITY.y);
-        const affordable =
-          movingCellRef.current !== null ||
-          game.gold >= TOWER_DATA[selectedKindRef.current].cost;
+        const affordable = game.gold >= TOWER_DATA[selectedKindRef.current].cost;
         context.fillStyle =
           occupied || forbidden || !affordable
             ? "rgba(244, 87, 80, .35)"
             : "rgba(226, 245, 132, .27)";
         context.fillRect(hover.x * CELL + 1, hover.y * CELL + 1, CELL - 2, CELL - 2);
-        if (!occupied) {
+        if (!occupied && !forbidden) {
           const selectedTower = TOWER_DATA[selectedKindRef.current];
           context.strokeStyle = selectedTower.color;
           context.setLineDash([7, 5]);
@@ -2047,11 +2083,20 @@ export default function NatureDefenseGame({
 
   const selectTower = useCallback((kind: TowerKind) => {
     cancelSpell(false);
-    movingCellRef.current = null;
-    setMovingCell(null);
+    buildingRef.current = true;
     setSelectedKind(kind);
+    setIsBuilding(true);
     setSelectedCell(null);
   }, [cancelSpell]);
+
+  const cancelBuilding = useCallback(() => {
+    if (!buildingRef.current) return false;
+    buildingRef.current = false;
+    setIsBuilding(false);
+    hoverRef.current = null;
+    refresh();
+    return true;
+  }, [refresh]);
 
   const selectSpell = useCallback(
     (kind: SpellKind) => {
@@ -2077,9 +2122,7 @@ export default function NatureDefenseGame({
         game.goldSpent += cost;
         game.spellCharges[kind] += 1;
       }
-      movingCellRef.current = null;
       selectedSpellRef.current = kind;
-      setMovingCell(null);
       setSelectedCell(null);
       setSelectedSpell(kind);
       game.message = `${spell.name} armed — click the field to cast.`;
@@ -2200,68 +2243,13 @@ export default function NatureDefenseGame({
         return;
       }
       const key = keyOf(point.x, point.y);
-      const movingFrom = movingCellRef.current;
-      if (movingFrom) {
-        const sourceKey = keyOf(movingFrom.x, movingFrom.y);
-        if (key === sourceKey) {
-          movingCellRef.current = null;
-          setMovingCell(null);
-          setSelectedCell(movingFrom);
-          notify("Move cancelled.");
-          return;
-        }
-        if (game.towers.has(key)) {
-          notify("That patch already has a guardian.");
-          return;
-        }
-        if (
-          (point.x === START.x && point.y === START.y) ||
-          (point.x === CITY.x && point.y === CITY.y)
-        ) {
-          notify("The Blight rift and Heartwood must stay clear.");
-          return;
-        }
-        if (
-          game.enemies.some(
-            (enemy) =>
-              Math.floor(enemy.x) === point.x &&
-              Math.floor(enemy.y) === point.y,
-          )
-        ) {
-          notify("A Blightling is already skittering through that patch.");
-          return;
-        }
-        const tower = game.towers.get(sourceKey);
-        if (!tower) {
-          movingCellRef.current = null;
-          setMovingCell(null);
-          return;
-        }
-        game.towers.delete(sourceKey);
-        game.towers.set(key, tower);
-        const route = createPath(game.towers, game.rng, false);
-        if (!route) {
-          game.towers.delete(key);
-          game.towers.set(sourceKey, tower);
-          notify("That move blocks the last route to the Heartwood.");
-          return;
-        }
-        game.route = route;
-        rerouteEnemies(game);
-        movingCellRef.current = null;
-        setMovingCell(null);
-        setSelectedCell(point);
-        game.message = `${TOWER_DATA[tower.kind].name} moved.`;
-        game.messageUntil = game.elapsed + 2;
-        refresh();
-        return;
-      }
       if (game.towers.has(key)) {
         setSelectedCell((current) =>
           current && current.x === point.x && current.y === point.y ? null : point,
         );
         return;
       }
+      if (!buildingRef.current) return;
       if (game.phase === "gameover") {
         return;
       }
@@ -2318,7 +2306,7 @@ export default function NatureDefenseGame({
       const canvas = canvasRef.current;
       if (!canvas) return;
       const bounds = canvas.getBoundingClientRect();
-      hoverRef.current = {
+      const point = {
         x: Math.max(
           0,
           Math.min(
@@ -2334,6 +2322,7 @@ export default function NatureDefenseGame({
           ),
         ),
       };
+      hoverRef.current = point;
     },
     [],
   );
@@ -2369,12 +2358,13 @@ export default function NatureDefenseGame({
     const key = keyOf(cell.x, cell.y);
     const tower = game.towers.get(key);
     if (!tower) return;
-    game.gold += tower.spent;
+    const refund = Math.floor(tower.spent * 0.75);
+    game.gold += refund;
     game.towers.delete(key);
     game.route = createPath(game.towers, game.rng, false) ?? [];
     rerouteEnemies(game);
     setSelectedCell(null);
-    notify(`${TOWER_DATA[tower.kind].name} sold for ${formatNumber(tower.spent)} gold.`);
+    notify(`${TOWER_DATA[tower.kind].name} sold for ${formatNumber(refund)} gold.`);
     refresh();
   }, [notify, refresh]);
 
@@ -2421,32 +2411,6 @@ export default function NatureDefenseGame({
     refresh();
   }, [notify, refresh]);
 
-  const moveSelected = useCallback(() => {
-    const game = gameRef.current;
-    const cell = selectedCellRef.current;
-    if (!cell || game.phase === "gameover") {
-      notify("Select a guardian to move first.");
-      return;
-    }
-    const tower = game.towers.get(keyOf(cell.x, cell.y));
-    if (!tower) return;
-    movingCellRef.current = cell;
-    selectedKindRef.current = tower.kind;
-    setMovingCell(cell);
-    setSelectedKind(tower.kind);
-    setSelectedCell(null);
-    refresh();
-  }, [notify, refresh]);
-
-  const cancelMove = useCallback(() => {
-    const cell = movingCellRef.current;
-    if (!cell) return;
-    movingCellRef.current = null;
-    setMovingCell(null);
-    setSelectedCell(cell);
-    notify("Move cancelled.");
-  }, [notify]);
-
   const togglePause = useCallback(() => {
     const game = gameRef.current;
     if (game.phase !== "wave") return;
@@ -2467,8 +2431,6 @@ export default function NatureDefenseGame({
     const next = createGame();
     next.bestWave = bestWave;
     gameRef.current = next;
-    movingCellRef.current = null;
-    setMovingCell(null);
     selectedSpellRef.current = null;
     setSelectedCell(null);
     setSelectedSpell(null);
@@ -2537,14 +2499,16 @@ export default function NatureDefenseGame({
     } catch {
       seen = false;
     }
-    if (seen) return;
+    const releasePreviewRequested =
+      new URLSearchParams(window.location.search).get("release-preview") === "1";
+    if (seen || whatsNewOpen || releasePreviewRequested) return;
     const game = gameRef.current;
     introPausedRef.current = game.paused;
     game.paused = true;
     setIntroStep(0);
     setIntroOpen(true);
     refresh();
-  }, [refresh]);
+  }, [refresh, whatsNewOpen]);
 
   useEffect(() => {
     if (!introOpen) {
@@ -2584,6 +2548,7 @@ export default function NatureDefenseGame({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
+      if (whatsNewOpen) return;
       if (event.key === "Tab") {
         if (
           !introOpen &&
@@ -2640,9 +2605,6 @@ export default function NatureDefenseGame({
         upgradeSelected();
       } else if (event.key.toLowerCase() === "s") {
         sellSelected();
-      } else if (event.key.toLowerCase() === "m") {
-        if (movingCellRef.current) cancelMove();
-        else moveSelected();
       } else if (event.key.toLowerCase() === "f") {
         setSpeed(gameRef.current.speed === 1 ? 2 : 1);
       } else if (event.key.toLowerCase() === "n") {
@@ -2656,7 +2618,7 @@ export default function NatureDefenseGame({
       } else if (event.key === "Escape") {
         if (helpOpen) closeHelp();
         else if (selectedSpellRef.current) cancelSpell();
-        else if (movingCellRef.current) cancelMove();
+        else if (cancelBuilding()) return;
         else setSelectedCell(null);
       }
     };
@@ -2672,7 +2634,7 @@ export default function NatureDefenseGame({
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", closeRunOverview);
     };
-  }, [cancelMove, cancelSpell, closeHelp, closeIntro, groveBuildOpen, helpOpen, introOpen, isNewProfile, leaderboardOpen, moveSelected, nextIntroStep, openHelp, profileOpen, refresh, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected]);
+  }, [cancelBuilding, cancelSpell, closeHelp, closeIntro, groveBuildOpen, helpOpen, introOpen, isNewProfile, leaderboardOpen, nextIntroStep, openHelp, profileOpen, refresh, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected, whatsNewOpen]);
 
   const game = gameRef.current;
   const inspectedTower = selectedCell
@@ -2696,14 +2658,38 @@ export default function NatureDefenseGame({
 
   const boardMessage = selectedSpell
     ? `${SPELL_DATA[selectedSpell].name} armed — click the field to cast or press Esc to cancel.`
-    : movingCell
-      ? `Moving ${TOWER_DATA[selectedKind].name} — click open grass or press Esc to cancel.`
-      : game.messageUntil > game.elapsed
+    : game.messageUntil > game.elapsed
         ? game.message
         : null;
 
   return (
     <main className="game-shell">
+      {whatsNewOpen ? (
+        <div className="whats-new-backdrop" role="presentation">
+          <section className="whats-new-modal" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
+            <div className="whats-new-version">
+              {releasePreview ? "Preview · " : ""}Version {CURRENT_RELEASE.version}
+            </div>
+            <p className="eyebrow">What&apos;s new</p>
+            <h2 id="whats-new-title">{CURRENT_RELEASE.title}</h2>
+            <p className="whats-new-summary">{CURRENT_RELEASE.summary}</p>
+            <div className="release-category-grid">
+              {CURRENT_RELEASE.categories.map((category) => (
+                <section key={category.name}>
+                  <h3>{category.name}</h3>
+                  <ul>
+                    {category.items.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </section>
+              ))}
+            </div>
+            {releaseDismissError ? <p className="form-error">{releaseDismissError}</p> : null}
+            <button className="primary-action" onClick={dismissWhatsNew}>
+              {releasePreview ? "Close preview" : "Enter the grove"}
+            </button>
+          </section>
+        </div>
+      ) : null}
       <section className="game-surface">
         <div className="board-frame">
           <header className="hud-topbar">
@@ -2788,6 +2774,13 @@ export default function NatureDefenseGame({
                   </button>
                 ) : null}
                 <button
+                  onClick={openWhatsNew}
+                  aria-label="Open What's New"
+                  title={`What's New · v${CURRENT_RELEASE.version}`}
+                >
+                  ✨
+                </button>
+                <button
                   onClick={openHelp}
                   aria-label="Open game help"
                   title="Help (H)"
@@ -2862,7 +2855,9 @@ export default function NatureDefenseGame({
                     ? ""
                     : selectedSpell
                       ? "casting"
-                      : "building"
+                      : isBuilding
+                        ? "building"
+                        : ""
                 }
                 onClick={handleCanvasClick}
                 onMouseMove={handlePointerMove}
@@ -2999,11 +2994,8 @@ export default function NatureDefenseGame({
                         ? "Maximum level"
                         : `Upgrade · ${formatNumber(inspectedUpgradeCost)} gold`} <kbd>U</kbd>
                     </button>
-                    <button onClick={moveSelected}>
-                      Move <kbd>M</kbd>
-                    </button>
-                    <button onClick={sellSelected}>
-                      Sell +{formatNumber(inspectedTower.spent)} <kbd>S</kbd>
+                    <button className="sell-action" onClick={sellSelected}>
+                      Sell +{formatNumber(Math.floor(inspectedTower.spent * 0.75))} <kbd>S</kbd>
                     </button>
                   </div>
                 </div>
@@ -3114,7 +3106,7 @@ export default function NatureDefenseGame({
                 return (
                   <button
                     key={kind}
-                    className={selectedKind === kind ? "selected" : ""}
+                    className={isBuilding && selectedKind === kind ? "selected" : ""}
                     onClick={() => selectTower(kind)}
                     disabled={game.phase === "gameover" || Boolean(game.pendingBuffChoices)}
                     aria-label={`Select ${tower.name}, ${tower.cost} gold. ${tower.description}`}
@@ -3319,9 +3311,9 @@ export default function NatureDefenseGame({
               <div>
                 <h3>Build under pressure</h3>
                 <p>
-                  You can plant, move, or upgrade guardians during any wave.
-                  Select one and press U to reach level 5, or press M and click
-                  its new patch. Between waves, press S for a 100% refund.
+                  You can plant or upgrade guardians during any wave. Select one
+                  and press U to reach level 5. Press S to sell it for 75% of
+                  all gold invested in that guardian.
                 </p>
               </div>
               <div>
@@ -3355,7 +3347,6 @@ export default function NatureDefenseGame({
               <span><kbd>Shift+1–4</kbd> Buy/arm spell</span>
               <span><kbd>U</kbd> Upgrade selected</span>
               <span><kbd>S</kbd> Sell selected</span>
-              <span><kbd>M</kbd> Move selected</span>
               <span><kbd>Space</kbd> Call wave</span>
               <span><kbd>F</kbd> Toggle speed</span>
               <span><kbd>P</kbd> Pause</span>
@@ -3534,7 +3525,7 @@ export default function NatureDefenseGame({
               </button>
               <span>{introStep + 1} / {INTRO_STEPS.length}</span>
               <button className="primary-action" onClick={nextIntroStep} autoFocus>
-                {introStep === INTRO_STEPS.length - 1 ? "Defend the grove" : "Next"}
+                {introStep === INTRO_STEPS.length - 1 ? "Got it!" : "Next"}
               </button>
             </div>
           </section>

@@ -67,6 +67,23 @@ export async function saveDisplayName(
   }
 }
 
+export async function markReleaseSeen(releaseId: string): Promise<ActionResult> {
+  if (!/^\d+\.\d+\.\d+$/.test(releaseId)) {
+    return { ok: false, error: "Invalid release identifier." };
+  }
+
+  try {
+    const { supabase, user } = await requireUser();
+    const { error } = await supabase
+      .from("profiles")
+      .update({ last_seen_release_id: releaseId })
+      .eq("id", user.id);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  } catch (error) {
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
 export async function saveGameState(
   state: GameSaveState,
 ): Promise<ActionResult> {

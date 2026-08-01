@@ -19,6 +19,7 @@ Requires Docker running and the `supabase` CLI.
 supabase init     # only if supabase/config.toml doesn't exist yet
 supabase start    # boots Postgres, Auth (GoTrue), Studio, Mailpit, etc.
 supabase status -o env   # prints ANON_KEY / API_URL for the values below
+supabase migration up    # apply new migrations to an existing local database
 ```
 
 Create `.env.local` (gitignored) at repo root:

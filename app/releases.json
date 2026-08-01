@@ -1,0 +1,31 @@
+[
+  {
+    "version": "0.2.0",
+    "title": "A Sharper Last Stand",
+    "publishedAt": "2026-07-31",
+    "summary": "Guardian balance, clearer onboarding, and a better way to keep up with every update.",
+    "categories": [
+      {
+        "name": "Quality of life",
+        "items": [
+          "Returning players now get a What's New summary once per release.",
+          "Release notes can be reopened anytime and previewed safely before publishing."
+        ]
+      },
+      {
+        "name": "Balance",
+        "items": [
+          "Boarstone attacks hit harder and cover more ground, but fire more slowly.",
+          "Selling a guardian now returns 75% of all gold invested."
+        ]
+      },
+      {
+        "name": "Changed",
+        "items": [
+          "Guardians can no longer be moved after they are planted.",
+          "The guided intro now ends with a clear, always-visible Got it action."
+        ]
+      }
+    ]
+  }
+]

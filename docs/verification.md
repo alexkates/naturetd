@@ -5,6 +5,7 @@
 ```bash
 bun run lint
 bun run test    # builds for production, then runs tests/ against that build
+bun run release:check
 ```
 
 Always run these before considering a change done.

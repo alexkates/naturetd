@@ -11,12 +11,26 @@ Next.js 16 (App Router) game client backed by Supabase for auth and persistence.
   - `login/`, `auth/callback/` — passwordless magic-link sign-in flow
   - `actions.ts` — server actions (auth, save/leaderboard writes)
   - `globals.css`, `design-tokens.css` — styling; no CSS framework beyond Tailwind v4 (postcss plugin)
+
 - `lib/`
   - `supabase/client.ts` / `server.ts` — browser vs. server Supabase clients (`@supabase/ssr`)
   - `supabase/config.ts` — resolves env var aliases (see [local-development.md](local-development.md))
   - `data.ts`, `types.ts` — shared game data/types
 - `supabase/migrations/` — schema, source of truth for the DB (see below)
 - `tests/` — `bun test` against a production build (see [verification.md](verification.md))
+
+## Releases and What's New
+
+`app/releases.json` is the player-facing release history. Its newest version
+must match `package.json`. Returning players see that release in a modal until
+its version is written to `profiles.last_seen_release_id`; the header sparkle
+button reopens it later. Release dismissal is stored in Supabase so it follows
+the account across devices.
+
+The committed `.githooks/pre-push` hook compares the commits being pushed with
+the remote ref. Changes under `app/`, `lib/`, `public/`, or `supabase/` require
+both a package version bump and a changed `app/releases.json`. Static release
+validation also runs as part of `bun run test`.
 
 ## Board art
 
@@ -85,6 +99,10 @@ Three tables, defined in `supabase/migrations/20260727000000_auth_profiles_games
 - `game_runs` — every finished run. The leaderboard is the top 10 by wave/kills/damage/time.
 
 Row-level security: saves are private to their owner; profiles and finished runs are publicly readable (needed for the leaderboard).
+
+The schema migrations also grant the necessary table privileges to Supabase's
+`anon` and `authenticated` roles. Both grants and RLS policies are required:
+Postgres checks table privileges before evaluating an RLS policy.
 
 ## Auth
 

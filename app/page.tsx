@@ -30,6 +30,7 @@ export default async function Home() {
       savedGame={savedGame}
       initialLeaderboard={leaderboard}
       bestWave={bestWave}
+      lastSeenReleaseId={profile?.last_seen_release_id ?? null}
     />
   );
 }

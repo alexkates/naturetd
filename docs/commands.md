@@ -11,6 +11,39 @@ bun run lint          # eslint .
 bun run test          # bun run build && bun test tests — builds, then exercises the production server
 ```
 
+## Release workflow
+
+Enable the committed push gate once per clone:
+
+```bash
+bun run hooks:install
+```
+
+Prepare a patch release (or pass `minor` / `major`):
+
+```bash
+bun run release:new
+```
+
+Edit the generated entry in `app/releases.json`, then validate it with:
+
+```bash
+bun run release:check
+```
+
+Preview the current release popup locally without recording it as dismissed:
+
+```text
+http://localhost:3999/?release-preview=1
+```
+
+This works for new and returning profiles and leaves
+`last_seen_release_id` unchanged.
+
+Normal `git push` commands run this automatically. A push containing
+player-facing changes is rejected unless `package.json` and
+`app/releases.json` were both updated.
+
 ## Supabase CLI
 
 ```bash

@@ -76,4 +76,5 @@ export type GameSaveState = {
 export type Profile = {
   id: string;
   display_name: string;
+  last_seen_release_id: string | null;
 };

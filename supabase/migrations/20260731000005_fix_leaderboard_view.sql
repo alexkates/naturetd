@@ -1,0 +1,19 @@
+create or replace view public.leaderboard
+with (security_invoker = true)
+as
+select
+  game_runs.id,
+  game_runs.played_at,
+  game_runs.wave,
+  game_runs.seed,
+  game_runs.towers,
+  game_runs.buffs,
+  game_runs.stats,
+  profiles.display_name as name,
+  game_runs.kills,
+  game_runs.damage,
+  game_runs.battle_time
+from public.game_runs
+join public.profiles on profiles.id = game_runs.user_id
+where game_runs.game_version ~ '^[0-9]+[.][0-9]+[.][0-9]+$'
+  and string_to_array(game_runs.game_version, '.')::integer[] >= array[0, 2, 0];

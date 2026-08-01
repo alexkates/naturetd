@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.2.2",
+    "title": "Leaderboard Restore",
+    "publishedAt": "2026-08-01",
+    "summary": "The leaderboard is reading new-version runs correctly again.",
+    "categories": [
+      {
+        "name": "Fixed",
+        "items": [
+          "Completed runs now appear correctly on the leaderboard."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.2.1",
     "title": "A Fresh Leaderboard",
     "publishedAt": "2026-08-01",

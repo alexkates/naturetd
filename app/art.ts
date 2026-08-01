@@ -31,6 +31,25 @@ export type BlightKind =
   | "scrapbug"
   | "sporefiend"
   | "smogbat"
+  | "bogbelly"
+  | "cinderhorn"
+  | "rustMatron"
+  | "meadowMaw"
+  | "puffcapProphet"
+  | "gloomwing"
+  | "myceliumMaw"
+  | "rotveil"
+  | "ashsnout"
+  | "sootscale"
+  | "boilwater"
+  | "fenFurnace"
+  | "galegullet"
+  | "shardback"
+  | "admiralSmog"
+  | "glassLeviathan"
+  | "crownscab"
+  | "sootChancellor"
+  | "princePutrescence"
   | "grimeKing";
 
 const BLIGHT_PALETTE: Record<BlightKind, { body: string; shade: string; accent: string }> = {
@@ -39,6 +58,25 @@ const BLIGHT_PALETTE: Record<BlightKind, { body: string; shade: string; accent: 
   scrapbug: { body: "#7fa6b4", shade: "#5b8391", accent: "#c2e0e8" },
   sporefiend: { body: "#cf95d6", shade: "#a86cb2", accent: "#f3d7f5" },
   smogbat: { body: "#8f86ab", shade: "#6c6389", accent: "#cfc8e4" },
+  bogbelly: { body: "#789f68", shade: "#54794d", accent: "#d4e985" },
+  cinderhorn: { body: "#e98655", shade: "#b94f42", accent: "#ffd16d" },
+  rustMatron: { body: "#a87862", shade: "#795044", accent: "#83b6ad" },
+  meadowMaw: { body: "#769d55", shade: "#4e753d", accent: "#f0df7a" },
+  puffcapProphet: { body: "#a981c7", shade: "#735b9f", accent: "#a9edf0" },
+  gloomwing: { body: "#55577e", shade: "#383a5f", accent: "#cad1ff" },
+  myceliumMaw: { body: "#b985b5", shade: "#805b8c", accent: "#e4d39a" },
+  rotveil: { body: "#956eaa", shade: "#65487e", accent: "#d7efad" },
+  ashsnout: { body: "#bd6954", shade: "#82483f", accent: "#ffcf7a" },
+  sootscale: { body: "#706d72", shade: "#48464d", accent: "#ed9d68" },
+  boilwater: { body: "#7ca9a2", shade: "#4f7778", accent: "#f4d085" },
+  fenFurnace: { body: "#d65f49", shade: "#8f3836", accent: "#ffe06e" },
+  galegullet: { body: "#6494a5", shade: "#426a82", accent: "#d3f4ef" },
+  shardback: { body: "#7d9faf", shade: "#536f86", accent: "#d8f5ff" },
+  admiralSmog: { body: "#65718f", shade: "#424a6c", accent: "#f2d17d" },
+  glassLeviathan: { body: "#6098a7", shade: "#396779", accent: "#bff5f2" },
+  crownscab: { body: "#796187", shade: "#513e64", accent: "#c5a86a" },
+  sootChancellor: { body: "#4f4c68", shade: "#343249", accent: "#c2b3d2" },
+  princePutrescence: { body: "#865b91", shade: "#593b6b", accent: "#b8d568" },
   grimeKing: { body: "#8d75c4", shade: "#63509a", accent: "#ffd76a" },
 };
 
@@ -155,7 +193,8 @@ export function drawBlightling(
   else if (kind === "scrapbug") drawScrapbug(ctx, skin, t, phase);
   else if (kind === "sporefiend") drawSporefiend(ctx, skin, t, phase);
   else if (kind === "smogbat") drawSmogbat(ctx, skin, t, phase);
-  else drawGrimeKing(ctx, skin, t, phase);
+  else if (kind === "grimeKing") drawGrimeKing(ctx, skin, t, phase);
+  else drawCampaignBoss(ctx, kind, skin, t, phase);
   ctx.restore();
 }
 
@@ -377,6 +416,286 @@ function drawGrimeKing(ctx: Ctx, skin: Skin, t: number, phase: number) {
   ctx.quadraticCurveTo(0, 8, 12, 14);
   ink(ctx, 4);
   ctx.stroke();
+}
+
+type CampaignBossKind = Exclude<
+  BlightKind,
+  "muckling" | "cinderling" | "scrapbug" | "sporefiend" | "smogbat" | "grimeKing"
+>;
+
+type BossRig = {
+  form: "brute" | "beetle" | "cap" | "winged" | "flame" | "serpent";
+  crest: "reeds" | "horn" | "crown" | "jaws" | "oracle" | "moon" | "antlers" | "veil" |
+    "tusks" | "scales" | "kettle" | "chimney" | "gale" | "shards" | "tricorn" |
+    "fins" | "scabs" | "collar" | "coronet";
+};
+
+const CAMPAIGN_BOSS_RIGS: Record<CampaignBossKind, BossRig> = {
+  bogbelly: { form: "brute", crest: "reeds" },
+  cinderhorn: { form: "flame", crest: "horn" },
+  rustMatron: { form: "beetle", crest: "crown" },
+  meadowMaw: { form: "brute", crest: "jaws" },
+  puffcapProphet: { form: "cap", crest: "oracle" },
+  gloomwing: { form: "winged", crest: "moon" },
+  myceliumMaw: { form: "cap", crest: "antlers" },
+  rotveil: { form: "cap", crest: "veil" },
+  ashsnout: { form: "brute", crest: "tusks" },
+  sootscale: { form: "beetle", crest: "scales" },
+  boilwater: { form: "brute", crest: "kettle" },
+  fenFurnace: { form: "flame", crest: "chimney" },
+  galegullet: { form: "winged", crest: "gale" },
+  shardback: { form: "beetle", crest: "shards" },
+  admiralSmog: { form: "winged", crest: "tricorn" },
+  glassLeviathan: { form: "serpent", crest: "fins" },
+  crownscab: { form: "brute", crest: "scabs" },
+  sootChancellor: { form: "winged", crest: "collar" },
+  princePutrescence: { form: "cap", crest: "coronet" },
+};
+
+/** Campaign wardens share the house style but carry node-specific silhouettes and regalia. */
+function drawCampaignBoss(
+  ctx: Ctx,
+  kind: CampaignBossKind,
+  skin: Skin,
+  t: number,
+  phase: number,
+) {
+  const rig = CAMPAIGN_BOSS_RIGS[kind];
+  const sway = Math.sin(t * 3.2 + phase);
+
+  ctx.save();
+  if (rig.form === "winged") {
+    for (const side of [-1, 1]) {
+      ctx.save();
+      ctx.rotate(side * sway * 0.12);
+      ctx.beginPath();
+      ctx.moveTo(side * 10, -5);
+      ctx.quadraticCurveTo(side * 34, -36, side * 47, -14);
+      ctx.quadraticCurveTo(side * 36, -4, side * 44, 14);
+      ctx.quadraticCurveTo(side * 23, 5, side * 11, 18);
+      ctx.closePath();
+      shape(ctx, skin.shade, 4);
+      ctx.restore();
+    }
+    ellipse(ctx, 0, 0, 24, 27);
+    shape(ctx, skin.body, 4.4);
+    underside(ctx, 0, 0, 24, 27, skin.shade);
+  } else if (rig.form === "beetle") {
+    for (const side of [-1, 1]) {
+      for (const y of [-8, 5, 17]) {
+        ctx.beginPath();
+        ctx.moveTo(side * 24, y);
+        ctx.lineTo(side * 40, y + 7 + sway * 2);
+        ink(ctx, 4);
+        ctx.stroke();
+      }
+    }
+    ellipse(ctx, 0, 2, 37, 29);
+    shape(ctx, skin.body, 4.6);
+    underside(ctx, 0, 2, 37, 29, skin.shade);
+    ctx.beginPath();
+    ctx.moveTo(0, -26);
+    ctx.lineTo(0, 29);
+    ink(ctx, 3.4);
+    ctx.stroke();
+  } else if (rig.form === "cap") {
+    ctx.beginPath();
+    ctx.moveTo(-17, 28);
+    ctx.quadraticCurveTo(-20, -5, -12, -15);
+    ctx.lineTo(12, -15);
+    ctx.quadraticCurveTo(20, -5, 17, 28);
+    ctx.closePath();
+    shape(ctx, CREAM, 4);
+    ctx.beginPath();
+    ctx.moveTo(-42, -12);
+    ctx.quadraticCurveTo(-34, -48, 0, -48);
+    ctx.quadraticCurveTo(34, -48, 42, -12);
+    ctx.quadraticCurveTo(0, 0, -42, -12);
+    ctx.closePath();
+    shape(ctx, skin.body, 4.6);
+    underside(ctx, 0, -26, 40, 23, skin.shade);
+  } else if (rig.form === "flame") {
+    ctx.beginPath();
+    ctx.moveTo(-34, 24);
+    ctx.quadraticCurveTo(-38, -12, -18 + sway * 4, -42);
+    ctx.lineTo(-3, -27);
+    ctx.lineTo(9 + sway * 5, -54);
+    ctx.quadraticCurveTo(39, -10, 34, 24);
+    ctx.quadraticCurveTo(0, 39, -34, 24);
+    ctx.closePath();
+    shape(ctx, skin.body, 4.6);
+    underside(ctx, 0, 3, 34, 31, skin.shade);
+    ctx.beginPath();
+    ctx.moveTo(-8, 23);
+    ctx.quadraticCurveTo(-12, 2, 3, -20);
+    ctx.quadraticCurveTo(18, 5, 10, 23);
+    ctx.closePath();
+    ctx.fillStyle = skin.accent;
+    ctx.globalAlpha = 0.72;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (rig.form === "serpent") {
+    for (let index = 3; index >= 0; index -= 1) {
+      const x = -32 + index * 14;
+      const y = 18 + Math.sin(t * 4 + phase + index) * 6;
+      ellipse(ctx, x, y, 17, 13);
+      shape(ctx, index % 2 ? skin.shade : skin.body, 3.6);
+    }
+    ellipse(ctx, 18, -3, 29, 28);
+    shape(ctx, skin.body, 4.6);
+    underside(ctx, 18, -3, 29, 28, skin.shade);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-39, 22);
+    ctx.quadraticCurveTo(-43, -31, 0, -35);
+    ctx.quadraticCurveTo(43, -31, 39, 22);
+    ctx.quadraticCurveTo(0, 38, -39, 22);
+    ctx.closePath();
+    shape(ctx, skin.body, 4.6);
+    underside(ctx, 0, -2, 39, 34, skin.shade);
+  }
+
+  drawBossCrest(ctx, rig.crest, skin, t, phase);
+  const faceX = rig.form === "serpent" ? 18 : 0;
+  const faceY = rig.form === "cap" ? 9 : rig.form === "beetle" ? 7 : 1;
+  eyes(ctx, faceX, faceY - 7, 12, 5.7, blink(t, phase));
+  cheeks(ctx, faceX, faceY + 5, 19, 5, skin.shade);
+  ctx.restore();
+}
+
+function drawBossCrest(ctx: Ctx, crest: BossRig["crest"], skin: Skin, t: number, phase: number) {
+  const sway = Math.sin(t * 3 + phase) * 3;
+  const spike = (x: number, top: number, width = 8) => {
+    ctx.beginPath();
+    ctx.moveTo(x - width, -25);
+    ctx.lineTo(x, top);
+    ctx.lineTo(x + width, -25);
+    ctx.closePath();
+    shape(ctx, skin.accent, 3.2);
+  };
+
+  if (crest === "reeds") {
+    for (const x of [-20, -7, 9, 22]) {
+      ctx.beginPath();
+      ctx.moveTo(x, -25);
+      ctx.quadraticCurveTo(x + sway, -42, x + sway * 1.4, -51);
+      ink(ctx, 3.4);
+      ctx.stroke();
+      ellipse(ctx, x + sway * 1.4, -54, 4, 8);
+      shape(ctx, skin.accent, 2.4);
+    }
+  } else if (crest === "horn") {
+    spike(-21, -56, 10);
+    spike(21, -48, 9);
+  } else if (crest === "crown" || crest === "coronet") {
+    ctx.beginPath();
+    ctx.moveTo(-27, -27);
+    for (const x of [-22, -11, 0, 11, 22]) {
+      ctx.lineTo(x, -43 - (Math.abs(x) < 2 ? 9 : 0));
+      ctx.lineTo(x + 5, -28);
+    }
+    ctx.closePath();
+    shape(ctx, skin.accent, 3.4);
+  } else if (crest === "jaws") {
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 15, 13);
+      ctx.quadraticCurveTo(side * 39, 2, side * 42, 20);
+      ctx.quadraticCurveTo(side * 31, 33, side * 12, 20);
+      shape(ctx, skin.accent, 3.6);
+    }
+  } else if (crest === "oracle") {
+    ellipse(ctx, 0, -28, 13, 13);
+    shape(ctx, skin.accent, 3.4);
+    eyes(ctx, 0, -28, 0, 5, 1);
+  } else if (crest === "moon") {
+    ctx.beginPath();
+    ctx.arc(0, -35, 14, 0.55, Math.PI * 1.75);
+    ctx.arc(5, -38, 11, Math.PI * 1.7, 0.65, true);
+    ctx.closePath();
+    shape(ctx, skin.accent, 3.2);
+  } else if (crest === "antlers") {
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 13, -28);
+      ctx.lineTo(side * 25, -51);
+      ctx.lineTo(side * 38, -47);
+      ctx.moveTo(side * 25, -44);
+      ctx.lineTo(side * 17, -56);
+      ink(ctx, 4);
+      ctx.stroke();
+    }
+  } else if (crest === "veil") {
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(-33, -34);
+    ctx.quadraticCurveTo(0, -62, 33, -34);
+    ctx.lineTo(25, 22);
+    ctx.quadraticCurveTo(0, 34, -25, 22);
+    ctx.closePath();
+    shape(ctx, skin.accent, 2.8);
+    ctx.globalAlpha = 1;
+  } else if (crest === "tusks") {
+    for (const side of [-1, 1]) spike(side * 27, 10, 6);
+  } else if (crest === "scales") {
+    for (const x of [-24, -12, 0, 12, 24]) spike(x, -39 - Math.abs(x) * 0.35, 6);
+  } else if (crest === "kettle") {
+    ctx.beginPath();
+    ctx.arc(0, -22, 26, Math.PI, 0);
+    ink(ctx, 4);
+    ctx.stroke();
+    for (const x of [-8, 8]) {
+      ctx.beginPath();
+      ctx.moveTo(x, -47);
+      ctx.quadraticCurveTo(x + sway, -57, x - sway, -65);
+      ink(ctx, 3);
+      ctx.stroke();
+    }
+  } else if (crest === "chimney") {
+    ctx.beginPath();
+    ctx.rect(-12, -56, 24, 29);
+    shape(ctx, skin.shade, 3.6);
+    ellipse(ctx, sway * 2, -64, 9, 6);
+    ctx.fillStyle = skin.accent;
+    ctx.globalAlpha = 0.55;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (crest === "gale") {
+    for (const y of [-28, -15, -2]) {
+      ctx.beginPath();
+      ctx.moveTo(-37, y);
+      ctx.quadraticCurveTo(0, y - 12, 37, y);
+      ink(ctx, 3);
+      ctx.stroke();
+    }
+  } else if (crest === "shards") {
+    for (const [x, top] of [[-25, -44], [-9, -58], [9, -50], [25, -40]] as const) spike(x, top, 7);
+  } else if (crest === "tricorn") {
+    ctx.beginPath();
+    ctx.moveTo(-34, -27);
+    ctx.lineTo(-20, -50);
+    ctx.quadraticCurveTo(0, -39, 20, -50);
+    ctx.lineTo(34, -27);
+    ctx.quadraticCurveTo(0, -19, -34, -27);
+    ctx.closePath();
+    shape(ctx, skin.accent, 3.6);
+  } else if (crest === "fins") {
+    for (const x of [-15, 2, 19, 35]) spike(x, -48 + Math.abs(x - 8) * 0.35, 7);
+  } else if (crest === "scabs") {
+    for (const [x, y, r] of [[-24, -22, 8], [9, -31, 7], [26, -12, 6]] as const) {
+      ellipse(ctx, x, y, r, r * 0.7);
+      shape(ctx, skin.accent, 2.8);
+    }
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-35, -18);
+    ctx.quadraticCurveTo(-28, -49, 0, -34);
+    ctx.quadraticCurveTo(28, -49, 35, -18);
+    ctx.lineTo(27, 17);
+    ctx.quadraticCurveTo(0, 28, -27, 17);
+    ctx.closePath();
+    shape(ctx, skin.accent, 3.4);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1386,10 +1705,14 @@ export function drawGrass(
   rows: number,
   cell: number,
   t: number,
+  palette?: [string, string],
+  mapSeed = 0,
 ) {
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
-      ctx.fillStyle = (x + y) % 2 === 0 ? "#cfe3ac" : "#c7dda2";
+      ctx.fillStyle = (x + y) % 2 === 0
+        ? (palette?.[0] ?? "#cfe3ac")
+        : (palette?.[1] ?? "#c7dda2");
       ctx.fillRect(x * cell, y * cell, cell, cell);
     }
   }
@@ -1412,7 +1735,7 @@ export function drawGrass(
   ctx.lineCap = "round";
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
-      const hash = (x * 73856093) ^ (y * 19349663);
+      const hash = (x * 73856093) ^ (y * 19349663) ^ mapSeed;
       const pick = Math.abs(hash) % 7;
       // Only every seventh cell gets anything — sparse reads as meadow,
       // dense reads as hatching.
@@ -1436,6 +1759,94 @@ export function drawGrass(
       }
     }
   }
+}
+
+export function drawCampaignTerrain(
+  ctx: Ctx,
+  kind: "mossStone" | "glowcap" | "emberPool" | "stormglass" | "blackroot",
+  t: number,
+) {
+  ctx.save();
+  if (kind === "mossStone") {
+    ctx.beginPath();
+    ctx.moveTo(-35, 26);
+    ctx.quadraticCurveTo(-32, -18, -9, -27);
+    ctx.quadraticCurveTo(25, -31, 35, 20);
+    ctx.closePath();
+    shape(ctx, "#8f9d83", 4);
+    underside(ctx, 0, 3, 35, 28, "#657862");
+    ctx.beginPath();
+    ctx.moveTo(-25, -5);
+    ctx.quadraticCurveTo(-5, -22, 27, -10);
+    ink(ctx, 5);
+    ctx.strokeStyle = "#8fbd58";
+    ctx.stroke();
+  } else if (kind === "glowcap") {
+    ctx.beginPath();
+    ctx.moveTo(-12, 29);
+    ctx.lineTo(-8, -5);
+    ctx.lineTo(9, -5);
+    ctx.lineTo(14, 29);
+    ctx.closePath();
+    shape(ctx, "#ede3c8", 3.6);
+    ctx.beginPath();
+    ctx.moveTo(-34, -5);
+    ctx.quadraticCurveTo(-24, -38, 0, -39);
+    ctx.quadraticCurveTo(27, -37, 35, -5);
+    ctx.quadraticCurveTo(0, 5, -34, -5);
+    ctx.closePath();
+    shape(ctx, "#8d6cb1", 4);
+    ctx.globalAlpha = 0.32 + Math.sin(t * 2.4) * 0.08;
+    ellipse(ctx, 0, -10, 42, 34);
+    ctx.fillStyle = "#b7f3e4";
+    ctx.fill();
+  } else if (kind === "emberPool") {
+    ellipse(ctx, 0, 12, 38, 20);
+    shape(ctx, "#6e554d", 4);
+    ellipse(ctx, 0, 9, 30, 13);
+    ctx.fillStyle = "#ed704b";
+    ctx.fill();
+    for (const x of [-17, 0, 17]) {
+      const rise = Math.sin(t * 4 + x) * 5;
+      ellipse(ctx, x, -8 + rise, 5, 8);
+      ctx.fillStyle = "#ffd06b";
+      ctx.fill();
+    }
+  } else if (kind === "stormglass") {
+    for (const [x, top, width] of [[-22, -31, 13], [1, -48, 15], [24, -26, 11]] as const) {
+      ctx.beginPath();
+      ctx.moveTo(x - width, 30);
+      ctx.lineTo(x - width * 0.55, top);
+      ctx.lineTo(x, top - 10);
+      ctx.lineTo(x + width * 0.6, 30);
+      ctx.closePath();
+      shape(ctx, "#aee7e8", 3.4);
+      ctx.beginPath();
+      ctx.moveTo(x, top - 7);
+      ctx.lineTo(x, 24);
+      ctx.strokeStyle = "rgba(255,255,255,.75)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  } else {
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 6, 32);
+      ctx.quadraticCurveTo(side * 8, -6, side * 32, -38);
+      ctx.quadraticCurveTo(side * 17, -5, side * 38, 9);
+      ink(ctx, 8);
+      ctx.strokeStyle = "#443650";
+      ctx.stroke();
+    }
+    ellipse(ctx, 0, 25, 31, 12);
+    shape(ctx, "#594263", 4);
+    for (const x of [-15, 5, 20]) {
+      ellipse(ctx, x, 17, 4, 4);
+      ctx.fillStyle = "#b59a62";
+      ctx.fill();
+    }
+  }
+  ctx.restore();
 }
 
 /** Rounded health pip above a blightling. */

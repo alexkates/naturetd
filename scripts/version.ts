@@ -14,12 +14,17 @@ function git(...args: string[]) {
   return execFileSync("git", args, { encoding: "utf8" }).trim();
 }
 
-function nextPatch(version: string) {
+function nextVersion(version: string, bump: "patch" | "minor") {
   const parts = version.split(".").map(Number);
   if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part))) {
     throw new Error(`package.json has an invalid version: ${version}`);
   }
-  parts[2] += 1;
+  if (bump === "minor") {
+    parts[1] += 1;
+    parts[2] = 0;
+  } else {
+    parts[2] += 1;
+  }
   return parts.join(".");
 }
 
@@ -94,7 +99,11 @@ if (git("status", "--porcelain")) {
 const packagePath = fileURLToPath(new URL("../package.json", import.meta.url));
 const versionsPath = fileURLToPath(new URL("../app/versions.json", import.meta.url));
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8")) as { version: string };
-const version = nextPatch(packageJson.version);
+const requestedBump = process.env.VERSION_BUMP ?? "patch";
+if (requestedBump !== "patch" && requestedBump !== "minor") {
+  throw new Error("VERSION_BUMP must be either patch or minor.");
+}
+const version = nextVersion(packageJson.version, requestedBump);
 const tag = `v${version}`;
 const branch = git("branch", "--show-current");
 if (!branch) throw new Error("Switch to a branch before running bun run version.");

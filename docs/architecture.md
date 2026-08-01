@@ -48,6 +48,11 @@ The house style is documented in the file header — flat fills, one soft-plum i
 outline, two tones per form, sine-based motion. Follow it when adding a creature
 or tower so the set stays coherent.
 
+Campaign wardens use dedicated `BlightKind` entries and palettes rather than
+reusing ordinary Blightling art. Their shared boss rigs and individual crests
+live in `CAMPAIGN_BOSS_RIGS` in `app/art.ts`; `lib/campaign.ts` maps each boss to
+its art key.
+
 ### Tower rank variants
 
 `drawNest` and `drawGuardian` take the tower's `level` (1–5) and layer on gear
@@ -97,12 +102,26 @@ Three tables, defined in `supabase/migrations/20260727000000_auth_profiles_games
 - `game_saves` — one resumable snapshot per player, autosaved between waves.
 - `game_runs` — every finished run, tagged with the game version that created
   it. This preserves player history across balance changes.
+- `campaign_progress` — the player&apos;s completed campaign nodes plus one
+  resumable campaign chapter. Campaign progress is separate from `game_saves`,
+  so starting the story never overwrites an endless run.
 - `leaderboard` — a version-filtered view over `game_runs`; it contains runs
   from game version 0.2.0 onward and powers the top 10 ranking. This preserves
   pre-0.2.0 runs for profile history without letting them compete with the
   rules introduced in 0.2.0.
 
 Row-level security: saves are private to their owner; profiles and finished runs are publicly readable (needed for the leaderboard).
+
+## Campaign
+
+`lib/campaign.ts` is the campaign source of truth. Each node defines its story,
+visual palette, authored blocking terrain, difficulty rules, restricted loadout,
+deterministic map seed, and bosses for waves 5, 10, 15, and 20. Terrain is
+derived from the node when a save is restored, so campaign save snapshots stay
+small while maps remain stable.
+Nodes unlock in order; the final node ends with the Grime King. The shared game
+loop switches to a finite 20-wave victory condition when a campaign node is
+active, while endless mode keeps its existing rules and leaderboard behavior.
 
 The schema migrations also grant the necessary table privileges to Supabase's
 `anon` and `authenticated` roles. Both grants and RLS policies are required:

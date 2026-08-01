@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getLeaderboard } from "@/lib/data";
 import { CURRENT_VERSION } from "@/app/versions";
 import { createClient } from "@/lib/supabase/server";
-import type { GameSaveState, LeaderboardRun } from "@/lib/types";
+import type { CampaignProgress, GameSaveState, LeaderboardRun } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -107,6 +107,21 @@ export async function clearGameState(): Promise<ActionResult> {
       .from("game_saves")
       .delete()
       .eq("user_id", user.id);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  } catch (error) {
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+export async function saveCampaignProgress(
+  progress: CampaignProgress,
+): Promise<ActionResult> {
+  try {
+    const { supabase, user } = await requireUser();
+    const { error } = await supabase.from("campaign_progress").upsert(
+      { user_id: user.id, progress },
+      { onConflict: "user_id" },
+    );
     return error ? { ok: false, error: error.message } : { ok: true };
   } catch (error) {
     return { ok: false, error: (error as Error).message };

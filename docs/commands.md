@@ -30,6 +30,8 @@ It summarizes commits since the previous `vX.Y.Z` tag with AI, appends the
 notes to `app/versions.json`, creates the next patch version, commits it,
 creates an annotated tag, and pushes both. The new entry appears as a What's
 New modal on a player's next login; ordinary pushes do not retrigger it.
+Set `VERSION_BUMP=minor` for a player-facing feature release that should bump
+the minor version instead of the default patch version.
 On the first run, before any `vX.Y.Z` tag exists, it summarizes the repository
 history. Set `VERSION_MODEL` only if you need to override the default AI model.
 

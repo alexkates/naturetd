@@ -3117,6 +3117,9 @@ export default function NatureDefenseGame({
           </header>
 
           <div className="canvas-stage">
+            {game.paused && game.phase === "wave" ? (
+              <div className="pause-overlay" aria-hidden="true">Ⅱ</div>
+            ) : null}
             {boardMessage ? (
               <div className="game-message" aria-live="polite">
                 <span>✦</span>
@@ -3125,10 +3128,10 @@ export default function NatureDefenseGame({
             ) : null}
 
             <div className="run-ticker" aria-label="Current resources">
-              <span className="gold-value"><b>{formatNumber(game.gold)}</b> gold</span>
               <span ref={healthRef} className={game.health <= 5 ? "danger-value" : ""}>
                 <b>{game.health}/{MAX_HEALTH}</b> Heartwood
               </span>
+              <span className="gold-value"><b>{formatNumber(game.gold)}</b> gold</span>
             </div>
 
             <div className="wave-peek" aria-label={campaignFinalWave ? "Campaign final wave" : `Upcoming wave ${upcomingWave}`}>

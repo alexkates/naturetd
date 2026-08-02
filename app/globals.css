@@ -775,6 +775,22 @@ body {
   cursor: crosshair;
 }
 
+.pause-overlay {
+  position: absolute;
+  z-index: 15;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(43, 30, 53, 0.24);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(72px, 10vw, 144px);
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 4px 18px rgba(43, 30, 53, 0.45);
+}
+
 .game-message,
 .wave-peek,
 .selection-inspector {
@@ -807,11 +823,13 @@ body {
   top: calc(var(--board-top-gutter) / 2);
   right: 10px;
   display: flex;
-  min-height: 56px;
   align-items: center;
   gap: 7px;
-  padding: 7px 9px 7px 12px;
-  border-radius: 13px;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: var(--font-size-label);
   text-transform: uppercase;
@@ -1689,9 +1707,9 @@ body {
 .grove-build-modal {
   position: relative;
   overflow: auto;
-  width: min(640px, 100%);
-  max-height: calc(100dvh - 40px);
-  padding: 24px;
+  width: min(980px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 34px 36px 38px;
   border: 2px solid #795293;
   border-radius: 20px;
   color: var(--ink);
@@ -1700,8 +1718,78 @@ body {
 }
 
 .grove-build-modal > h2 {
-  margin: 0 0 18px;
+  margin: 0 0 28px;
   font-size: var(--font-size-heading-feature);
+}
+
+.grove-build-modal > .eyebrow {
+  margin-bottom: 8px;
+  font-size: var(--font-size-body-sm);
+}
+
+.grove-build-modal .saved-buffs {
+  --rogue-card-height: 184px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-auto-rows: minmax(var(--rogue-card-height), auto);
+  gap: 16px;
+  min-height: 0;
+  margin: 0;
+}
+
+.grove-build-modal .saved-buff-card {
+  gap: 14px;
+  padding: 18px;
+  border-width: 2px;
+  border-radius: 14px;
+}
+
+.grove-build-modal .saved-buff-card > header {
+  gap: 11px;
+}
+
+.grove-build-modal .saved-buff-card > header > b {
+  width: 34px;
+  height: 34px;
+  font-size: var(--font-size-body);
+}
+
+.grove-build-modal .saved-buff-card > header > div {
+  gap: 3px;
+}
+
+.grove-build-modal .saved-buff-card strong,
+.grove-build-modal .saved-buff-card header small,
+.grove-build-modal .saved-buff-card > p {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.grove-build-modal .saved-buff-card strong {
+  font-size: var(--font-size-control);
+  line-height: 1.2;
+}
+
+.grove-build-modal .saved-buff-card header small {
+  font-size: var(--font-size-body-sm);
+  line-height: 1.25;
+}
+
+.grove-build-modal .saved-buff-card > p {
+  display: block;
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  -webkit-line-clamp: unset;
+}
+
+@media (max-width: 640px) {
+  .grove-build-modal {
+    padding: 26px 22px;
+  }
+
+  .grove-build-modal .saved-buffs {
+    grid-template-columns: 1fr;
+  }
 }
 
 .leaderboard-layout {
@@ -2242,12 +2330,12 @@ body {
 
 
 .canvas-stage {
-  --board-top-gutter: 84px;
+  --board-top-gutter: 96px;
   --board-bottom-gutter: 128px;
   flex: 0 0 auto;
   width: min(
     calc(100vw - 52px),
-    calc((100dvh - 286px) * 2 / 1)
+    calc((100dvh - 298px) * 2 / 1)
   );
   background:
     radial-gradient(circle at 12% 110%, rgba(185, 220, 117, .32), transparent 28%),
@@ -2280,7 +2368,7 @@ body {
   .canvas-stage {
     width: min(
       calc(100vw - 26px),
-      calc((100dvh - 350px) * 2 / 1)
+      calc((100dvh - 362px) * 2 / 1)
     );
   }
 }
@@ -2566,7 +2654,7 @@ body {
   .canvas-stage {
     width: min(
       calc(100vw - 26px),
-      calc((100dvh - 300px) * 2 / 1)
+      calc((100dvh - 312px) * 2 / 1)
     );
   }
 }
@@ -2817,16 +2905,10 @@ body {
   top: calc(var(--board-top-gutter) / 2);
   left: 10px;
   display: flex;
-  min-height: 56px;
   align-items: center;
   gap: 14px;
-  padding: 7px 13px;
-  border: 1px solid rgba(104, 74, 130, 0.42);
-  border-radius: 13px;
+  padding: 10px 0;
   color: rgba(68, 50, 80, 0.72);
-  background: rgba(255, 250, 240, 0.92);
-  box-shadow: 0 8px 24px rgba(58, 38, 72, 0.18);
-  backdrop-filter: blur(8px);
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: var(--font-size-body-sm);
   text-transform: uppercase;

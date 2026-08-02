@@ -781,9 +781,8 @@ body {
   inset: 0;
   display: grid;
   place-items: center;
-  color: rgba(255, 255, 255, 0.92);
+  color: #5c426c;
   background: rgba(43, 30, 53, 0.24);
-  font-family: "SFMono-Regular", Consolas, monospace;
   font-size: clamp(72px, 10vw, 144px);
   font-weight: 800;
   line-height: 1;
@@ -2646,7 +2645,7 @@ body {
 .canvas-stage {
   width: min(
     calc(100vw - 52px),
-    calc((100dvh - 262px) * 2 / 1)
+    calc((100dvh - 298px) * 2 / 1)
   );
 }
 
@@ -2654,7 +2653,7 @@ body {
   .canvas-stage {
     width: min(
       calc(100vw - 26px),
-      calc((100dvh - 312px) * 2 / 1)
+      calc((100dvh - 362px) * 2 / 1)
     );
   }
 }
@@ -3133,19 +3132,26 @@ body {
   font-weight: 800;
 }
 
-/* The account link is navigation, not a control — it stays quiet. */
 .account-chip {
-  display: flex;
+  display: inline-flex;
+  min-height: 26px;
   align-items: center;
   gap: 6px;
-  color: var(--muted);
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #5c426c;
+  background: transparent;
   font-size: var(--font-size-body-sm);
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .account-chip:hover {
-  color: var(--ink);
+  border-color: #c6aed5;
+  color: #5c426c;
+  background: #fffdf9;
 }
 
 .account-chip span {

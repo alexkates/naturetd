@@ -778,16 +778,16 @@ body {
 .pause-overlay {
   position: absolute;
   z-index: 15;
-  inset: 0;
+  top: 16px;
+  right: 16px;
   display: grid;
   place-items: center;
   color: #5c426c;
-  background: rgba(43, 30, 53, 0.24);
-  font-size: clamp(72px, 10vw, 144px);
+  font-size: clamp(28px, 3vw, 42px);
   font-weight: 800;
   line-height: 1;
   pointer-events: none;
-  text-shadow: 0 4px 18px rgba(43, 30, 53, 0.45);
+  text-shadow: 0 2px 8px rgba(43, 30, 53, 0.28);
 }
 
 .game-message,

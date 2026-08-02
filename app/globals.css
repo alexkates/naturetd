@@ -1038,9 +1038,10 @@ body {
   left: 16px;
   display: flex;
   height: var(--board-bottom-gutter);
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   gap: 16px;
+  padding-block: 10px;
 }
 
 .guardian-dock,

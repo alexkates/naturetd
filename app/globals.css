@@ -2243,7 +2243,7 @@ body {
 
 .canvas-stage {
   --board-top-gutter: 84px;
-  --board-bottom-gutter: 112px;
+  --board-bottom-gutter: 128px;
   flex: 0 0 auto;
   width: min(
     calc(100vw - 52px),

@@ -471,8 +471,8 @@ const INTRO_STEPS = [
   {
     id: "actions",
     label: "Live controls",
-    title: "Build while the Blight moves",
-    body: "A wave arrives every 30 seconds. Space calls it early for bonus gold. Select a guardian and press U to upgrade it; press S to sell it for a 75% refund.",
+    title: "Build between waves",
+    body: "A wave arrives every 30 seconds. Use the intermission to place, upgrade, or sell guardians; Space calls the next wave early for bonus gold.",
   },
 ] as const;
 const keyOf = (x: number, y: number) => `${x},${y}`;
@@ -480,6 +480,14 @@ const formatNumber = (value: number) => NUMBER_FORMATTER.format(Math.round(value
 
 function towerAvailable(game: Game, kind: TowerKind) {
   return !campaignNode(game.campaignNodeId)?.rules.disabledTowers.includes(kind);
+}
+
+function canManageGuardians(game: Game) {
+  return game.phase === "intermission" && !game.paused && !game.pendingBuffChoices;
+}
+
+function canTakeGameAction(game: Game) {
+  return !game.paused && game.phase !== "gameover" && game.phase !== "victory" && !game.pendingBuffChoices;
 }
 
 function spellAvailable(game: Game, kind: SpellKind) {
@@ -2182,6 +2190,7 @@ export default function NatureDefenseGame({
       const kind = selectedSpellRef.current;
       if (!kind) return false;
       const game = gameRef.current;
+      if (game.paused) return false;
       const refund = spellCost(game, kind);
       if (game.spellCharges[kind] > 0) {
         game.spellCharges[kind] -= 1;
@@ -2201,7 +2210,9 @@ export default function NatureDefenseGame({
   );
 
   const selectTower = useCallback((kind: TowerKind) => {
-    if (!towerAvailable(gameRef.current, kind)) {
+    const game = gameRef.current;
+    if (!canManageGuardians(game)) return;
+    if (!towerAvailable(game, kind)) {
       notify(`${TOWER_DATA[kind].name} cannot take root in this chapter.`);
       return;
     }
@@ -2226,7 +2237,7 @@ export default function NatureDefenseGame({
   const selectSpell = useCallback(
     (kind: SpellKind) => {
       const game = gameRef.current;
-      if (game.phase === "gameover" || game.phase === "victory" || game.pendingBuffChoices) return;
+      if (!canTakeGameAction(game)) return;
       const spell = SPELL_DATA[kind];
       if (!spellAvailable(game, kind)) {
         notify(`${spell.name} is suppressed by this chapter.`);
@@ -2266,7 +2277,7 @@ export default function NatureDefenseGame({
   const castSpell = useCallback(
     (kind: SpellKind, center: Point) => {
       const game = gameRef.current;
-      if (game.spellCharges[kind] <= 0 || game.phase === "gameover") return;
+      if (!canTakeGameAction(game) || game.spellCharges[kind] <= 0) return;
       const spellPower = 55 * Math.pow(1.16, Math.max(0, game.wave - 1));
 
       if (kind === "solar") {
@@ -2368,6 +2379,7 @@ export default function NatureDefenseGame({
         y: Math.floor(((event.clientY - bounds.top) / bounds.height) * ROWS),
       };
       const game = gameRef.current;
+      if (game.paused) return;
       const armedSpell = selectedSpellRef.current;
       if (armedSpell) {
         castSpell(armedSpell, { x: point.x + 0.5, y: point.y + 0.5 });
@@ -2399,7 +2411,7 @@ export default function NatureDefenseGame({
         setSelectedUpcoming(null);
         return;
       }
-      if (game.phase === "gameover") {
+      if (!canManageGuardians(game)) {
         return;
       }
       if (
@@ -2487,9 +2499,7 @@ export default function NatureDefenseGame({
   const startWave = useCallback(() => {
     const game = gameRef.current;
     if (
-      game.phase === "gameover" ||
-      game.phase === "victory" ||
-      game.pendingBuffChoices ||
+      !canTakeGameAction(game) ||
       (game.campaignNodeId && game.wave >= 20)
     ) return;
     const pendingBlightlings =
@@ -2518,7 +2528,7 @@ export default function NatureDefenseGame({
   const sellSelected = useCallback(() => {
     const game = gameRef.current;
     const cell = selectedCellRef.current;
-    if (!cell || game.phase === "gameover") return;
+    if (!cell || !canManageGuardians(game)) return;
     const key = keyOf(cell.x, cell.y);
     const tower = game.towers.get(key);
     if (!tower) return;
@@ -2549,6 +2559,7 @@ export default function NatureDefenseGame({
 
   const upgradeSelected = useCallback(() => {
     const game = gameRef.current;
+    if (!canManageGuardians(game)) return;
     const cell = selectedCellRef.current;
     if (!cell) {
       notify("Select a guardian to upgrade first.");
@@ -2584,6 +2595,7 @@ export default function NatureDefenseGame({
 
   const setSpeed = useCallback(
     (speed: number) => {
+      if (gameRef.current.paused) return;
       gameRef.current.speed = speed;
       refresh();
     },
@@ -2850,6 +2862,8 @@ export default function NatureDefenseGame({
   }, [cancelBuilding, cancelSpell, closeHelp, closeIntro, groveBuildOpen, helpOpen, homeView, introOpen, isNewProfile, leaderboardOpen, nextIntroStep, openHelp, profileOpen, refresh, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected, whatsNewOpen]);
 
   const game = gameRef.current;
+  const guardianActionsAvailable = canManageGuardians(game);
+  const gameActionsAvailable = canTakeGameAction(game);
   const campaignFinalWave = Boolean(game.campaignNodeId && game.wave >= 20);
   const inspectedTower = selectedCell
     ? game.towers.get(keyOf(selectedCell.x, selectedCell.y))
@@ -3003,7 +3017,7 @@ export default function NatureDefenseGame({
                 <button
                   className={`rush-button ${rushWindow > 0 ? "chain-active" : ""}`}
                 onClick={startWave}
-                disabled={game.phase === "gameover" || game.phase === "victory" || campaignFinalWave}
+                disabled={!gameActionsAvailable || campaignFinalWave}
                 aria-label={
                   campaignFinalWave
                     ? "Campaign final wave in progress"
@@ -3026,6 +3040,7 @@ export default function NatureDefenseGame({
                 <button
                   className={game.speed === 1 ? "active" : ""}
                   onClick={() => setSpeed(1)}
+                  disabled={game.paused}
                   aria-label="Normal speed"
                 >
                   1×
@@ -3033,6 +3048,7 @@ export default function NatureDefenseGame({
                 <button
                   className={game.speed === 2 ? "active" : ""}
                   onClick={() => setSpeed(2)}
+                  disabled={game.paused}
                   aria-label="Double speed"
                 >
                   2×
@@ -3396,11 +3412,11 @@ export default function NatureDefenseGame({
                     <small>{Math.round(towerStats(inspectedTower, game).damage)} damage · {towerStats(inspectedTower, game).rate.toFixed(1)}/s · {towerStats(inspectedTower, game).range.toFixed(1)} range</small>
                   </div>
                   <div className="inspector-actions">
-                    <button onClick={upgradeSelected} disabled={inspectedUpgradeCost === null}>
+                    <button onClick={upgradeSelected} disabled={!guardianActionsAvailable || inspectedUpgradeCost === null}>
                       <span>{inspectedUpgradeCost === null ? "Maximum" : `Upgrade ${formatNumber(inspectedUpgradeCost)}`}</span>
                       <kbd>U</kbd>
                     </button>
-                    <button className="sell-action" onClick={sellSelected}>
+                    <button className="sell-action" onClick={sellSelected} disabled={!guardianActionsAvailable}>
                       <span>Sell +{formatNumber(Math.floor(inspectedTower.spent * 0.75))}</span>
                       <kbd>S</kbd>
                     </button>
@@ -3446,7 +3462,7 @@ export default function NatureDefenseGame({
                     key={kind}
                     className={`${isBuilding && selectedKind === kind ? "selected" : ""} ${available ? "" : "chapter-locked"}`}
                     onClick={() => selectTower(kind)}
-                    disabled={!available || game.phase === "gameover" || Boolean(game.pendingBuffChoices)}
+                    disabled={!available || !guardianActionsAvailable}
                     aria-label={available ? `Select ${tower.name}, ${tower.cost} gold. ${tower.description}` : `${tower.name} unavailable in this chapter`}
                     aria-describedby={`tower-tooltip-${kind}`}
                     style={{ "--tower-color": tower.color } as React.CSSProperties}
@@ -3491,7 +3507,7 @@ export default function NatureDefenseGame({
                     key={kind}
                     className={`${selectedSpell === kind ? "selected" : ""} ${charges ? "charged" : ""} ${available ? "" : "chapter-locked"}`}
                     onClick={() => selectSpell(kind)}
-                    disabled={!available || game.phase === "gameover" || Boolean(game.pendingBuffChoices)}
+                    disabled={!available || !gameActionsAvailable}
                     style={{ "--spell-color": spell.color } as React.CSSProperties}
                     aria-label={available ? `${charges ? "Arm" : "Buy and arm"} ${spell.name}. ${spell.description}` : `${spell.name} unavailable in this chapter`}
                   >

@@ -471,8 +471,8 @@ const INTRO_STEPS = [
   {
     id: "actions",
     label: "Live controls",
-    title: "Build between waves",
-    body: "A wave arrives every 30 seconds. Use the intermission to place, upgrade, or sell guardians; Space calls the next wave early for bonus gold.",
+    title: "Build while the Blight moves",
+    body: "A wave arrives every 30 seconds. Place and upgrade guardians whenever the game is running; sell only during an intermission. Space calls the next wave early for bonus gold.",
   },
 ] as const;
 const keyOf = (x: number, y: number) => `${x},${y}`;
@@ -2211,7 +2211,7 @@ export default function NatureDefenseGame({
 
   const selectTower = useCallback((kind: TowerKind) => {
     const game = gameRef.current;
-    if (!canManageGuardians(game)) return;
+    if (!canTakeGameAction(game)) return;
     if (!towerAvailable(game, kind)) {
       notify(`${TOWER_DATA[kind].name} cannot take root in this chapter.`);
       return;
@@ -2411,7 +2411,7 @@ export default function NatureDefenseGame({
         setSelectedUpcoming(null);
         return;
       }
-      if (!canManageGuardians(game)) {
+      if (!canTakeGameAction(game)) {
         return;
       }
       if (
@@ -2559,7 +2559,7 @@ export default function NatureDefenseGame({
 
   const upgradeSelected = useCallback(() => {
     const game = gameRef.current;
-    if (!canManageGuardians(game)) return;
+    if (!canTakeGameAction(game)) return;
     const cell = selectedCellRef.current;
     if (!cell) {
       notify("Select a guardian to upgrade first.");
@@ -3412,7 +3412,7 @@ export default function NatureDefenseGame({
                     <small>{Math.round(towerStats(inspectedTower, game).damage)} damage · {towerStats(inspectedTower, game).rate.toFixed(1)}/s · {towerStats(inspectedTower, game).range.toFixed(1)} range</small>
                   </div>
                   <div className="inspector-actions">
-                    <button onClick={upgradeSelected} disabled={!guardianActionsAvailable || inspectedUpgradeCost === null}>
+                    <button onClick={upgradeSelected} disabled={!gameActionsAvailable || inspectedUpgradeCost === null}>
                       <span>{inspectedUpgradeCost === null ? "Maximum" : `Upgrade ${formatNumber(inspectedUpgradeCost)}`}</span>
                       <kbd>U</kbd>
                     </button>
@@ -3462,7 +3462,7 @@ export default function NatureDefenseGame({
                     key={kind}
                     className={`${isBuilding && selectedKind === kind ? "selected" : ""} ${available ? "" : "chapter-locked"}`}
                     onClick={() => selectTower(kind)}
-                    disabled={!available || !guardianActionsAvailable}
+                    disabled={!available || !gameActionsAvailable}
                     aria-label={available ? `Select ${tower.name}, ${tower.cost} gold. ${tower.description}` : `${tower.name} unavailable in this chapter`}
                     aria-describedby={`tower-tooltip-${kind}`}
                     style={{ "--tower-color": tower.color } as React.CSSProperties}

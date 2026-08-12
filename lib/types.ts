@@ -73,13 +73,6 @@ export type GameSaveState = {
   stats: RunStats;
 };
 
-export type CampaignProgress = {
-  version: 1;
-  completedNodeIds: string[];
-  activeNodeId: string | null;
-  activeGame: GameSaveState | null;
-};
-
 export type Profile = {
   id: string;
   display_name: string;

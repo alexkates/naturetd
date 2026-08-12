@@ -18,8 +18,7 @@ To verify a change that requires being signed in:
 
 1. Make sure local Supabase is set up and running (see [local-development.md](local-development.md)).
 2. Start the dev server and open it in a browser.
-3. Go through the magic-link flow (submit email → grab the link from Mailpit at
-   `127.0.0.1:54324` → open it in the same browser tab) to reach an authenticated state.
+3. Create a test account with email and password, or sign in with an existing one.
 4. For a *new* account the "Claim your grove name" profile modal opens automatically
    (`isNewProfile` state — only one footer button, and it can't be dismissed until a
    name is saved). Set a name, then click the account chip in the game header to

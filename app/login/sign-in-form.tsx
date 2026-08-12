@@ -1,76 +1,54 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { sendMagicLink } from "@/app/actions";
+import { signInWithPassword, signUpWithPassword } from "@/app/actions";
 
 export default function SignInForm({ initialError }: { initialError?: string }) {
+  const router = useRouter();
+  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
-  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState(initialError ?? "");
   const [pending, startTransition] = useTransition();
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    const address = email.trim();
     setError("");
     startTransition(async () => {
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const result = await sendMagicLink(address, redirectTo);
-      if (result.ok) setSentTo(address);
-      else setError(result.error);
+      const result = mode === "sign-in"
+        ? await signInWithPassword(email, password)
+        : await signUpWithPassword(email, password);
+      if (result.ok) {
+        router.replace("/");
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
     });
   };
 
-  if (sentTo) {
-    return (
-      <div className="auth-sent">
-        <span aria-hidden="true">✉</span>
-        <h2>Check your inbox</h2>
-        <p>
-          We sent a sign-in link to <strong>{sentTo}</strong>. Open it on this
-          device to enter the grove.
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            setSentTo(null);
-            setEmail("");
-          }}
-        >
-          Use a different email
+  return (
+    <>
+      <div className="auth-tabs" role="tablist" aria-label="Account access">
+        <button type="button" role="tab" aria-selected={mode === "sign-in"} onClick={() => { setMode("sign-in"); setError(""); }}>
+          Sign in
+        </button>
+        <button type="button" role="tab" aria-selected={mode === "sign-up"} onClick={() => { setMode("sign-up"); setError(""); }}>
+          Create account
         </button>
       </div>
-    );
-  }
-
-  return (
-    <form className="auth-form" onSubmit={submit}>
-      <label htmlFor="auth-email">Email address</label>
-      <input
-        id="auth-email"
-        type="email"
-        name="email"
-        autoComplete="email"
-        inputMode="email"
-        placeholder="you@example.com"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        required
-        autoFocus
-      />
-      <button className="primary-action" type="submit" disabled={pending}>
-        {pending ? "Sending…" : "Email me a magic link"}
-      </button>
-      {error ? (
-        <p className="auth-error" role="alert">
-          {error}
-        </p>
-      ) : (
-        <p className="auth-hint">
-          No passwords. We email you a one-tap link that signs you in.
-        </p>
-      )}
-    </form>
+      <form className="auth-form" onSubmit={submit}>
+        <label htmlFor="auth-email">Email</label>
+        <input id="auth-email" type="email" autoComplete="email" inputMode="email" placeholder="keeper@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required autoFocus />
+        <label htmlFor="auth-password">Password</label>
+        <input id="auth-password" type="password" autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required />
+        <button className="primary-action" type="submit" disabled={pending}>
+          {pending ? "Entering…" : mode === "sign-in" ? "Enter the grove" : "Join the guardians"}
+        </button>
+        {error ? <p className="auth-error" role="alert">{error}</p> : <p className="auth-hint">{mode === "sign-up" ? "Use at least 8 characters." : "Your runs and leaderboard place follow your account."}</p>}
+      </form>
+    </>
   );
 }

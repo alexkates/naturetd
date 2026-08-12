@@ -22,7 +22,7 @@ present locally (the Vercel/Supabase integration sets them in the deployment).
 
 ## Supabase
 
-Accounts use passwordless magic-link email. Schema lives in
+Accounts use email and password with email confirmation disabled. Schema lives in
 `supabase/migrations/` and covers three tables:
 
 - `profiles` — the required, unique leaderboard name for each account.
@@ -32,9 +32,8 @@ Accounts use passwordless magic-link email. Schema lives in
 Row-level security keeps saves private to their owner while profiles and
 finished runs stay publicly readable for the leaderboard.
 
-In the Supabase dashboard, add your deployment's `/auth/callback` URL (and
-`http://localhost:3999/auth/callback`) to **Authentication → URL Configuration →
-Redirect URLs**.
+In the Supabase dashboard, disable **Authentication → Providers → Email →
+Confirm email** so sign-up creates a session without SMTP.
 
 ## Checks
 

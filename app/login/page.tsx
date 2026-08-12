@@ -22,13 +22,19 @@ export default async function LoginPage({
 
   return (
     <main className="auth-shell">
+      <div className="auth-gameplay" aria-hidden="true">
+        <video autoPlay muted loop playsInline poster="/og-v2.png">
+          <source src="/gameplay.mp4" type="video/mp4" />
+        </video>
+      </div>
+      <div className="auth-shade" aria-hidden="true" />
       <section className="auth-card">
         <div className="brand-lockup">
           <div className="brand-mark">ND</div>
           <h1>Nature&apos;s Last Stand</h1>
         </div>
-        <p className="eyebrow">Grove keepers only</p>
-        <h2>Sign in to defend the Heartwood</h2>
+        <p className="eyebrow">The Blight never stops</p>
+        <h2>Defend the Heartwood</h2>
         <p className="auth-copy">
           Your runs, your maze, and your place on the leaderboard follow you
           across devices.

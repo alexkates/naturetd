@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import {
   getBestWave,
-  getCampaignProgress,
   getLeaderboard,
   getProfile,
   getSavedGame,
@@ -17,11 +16,10 @@ export default async function Home() {
 
   const profile = await getProfile(user.id);
 
-  const [savedGame, leaderboard, bestWave, campaignProgress] = await Promise.all([
+  const [savedGame, leaderboard, bestWave] = await Promise.all([
     getSavedGame(user.id),
     getLeaderboard(),
     getBestWave(user.id),
-    getCampaignProgress(user.id),
   ]);
 
   return (
@@ -33,7 +31,6 @@ export default async function Home() {
       initialLeaderboard={leaderboard}
       bestWave={bestWave}
       lastSeenVersionId={profile?.last_seen_version_id ?? null}
-      campaignProgress={campaignProgress}
     />
   );
 }

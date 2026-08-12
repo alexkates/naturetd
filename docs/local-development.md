@@ -57,29 +57,10 @@ To move it, change all four and then `supabase stop && supabase start`.
 (`bun run test` is unaffected — it starts the production server on a random
 high port and passes `-p` explicitly.)
 
-### Magic-link redirect must be allow-listed
+### Local accounts
 
-Local GoTrue only redirects to URLs in `supabase/config.toml`. The app requests
-`redirect_to = <origin>/auth/callback`, so `additional_redirect_urls` must include
-`http://localhost:3999/auth/callback` (and the `127.0.0.1` equivalents if you use that
-host instead). If it's missing, the magic link silently falls back to `site_url` and
-sign-in never completes. Restart with `supabase stop && supabase start` after editing
-`config.toml`.
-
-### Reading magic-link emails
-
-Local Supabase never sends real email — it captures messages in Mailpit at
-`http://127.0.0.1:54324`. To sign in as a test user during local dev or automated
-browser verification:
-
-1. Submit the sign-in form with any email address.
-2. Open Mailpit (`http://127.0.0.1:54324`) — the "Your sign-in link" message has the
-   verify URL in `Text`/`HTML`. You can also fetch it via the API:
-   `fetch('/api/v1/messages')` then `fetch('/api/v1/message/<ID>')`.
-3. Navigate to that verify URL directly in the **same browser** that submitted the
-   form (the PKCE flow needs matching local storage/cookies). It redirects into
-   `/auth/callback` and then into the app.
-
-See [verification.md](verification.md) for doing this as part of checking a change.
+Create an account directly from `/login` with an email address and a password of
+at least eight characters. Local and production Supabase must keep email
+confirmations disabled; no SMTP or Mailpit step is needed.
 
 Studio (DB browser) is at `http://127.0.0.1:54323` — no auth in local dev.

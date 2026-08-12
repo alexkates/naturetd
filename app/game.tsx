@@ -13,7 +13,6 @@ import {
 import {
   fetchLeaderboard,
   markVersionSeen,
-  saveCampaignProgress,
   saveDisplayName,
   saveGameState,
   signOut,
@@ -22,7 +21,6 @@ import {
 import type { BlightKind } from "@/app/art";
 import {
   drawBlightling,
-  drawCampaignTerrain,
   drawGrass,
   drawGuardian,
   drawHealthBar,
@@ -32,10 +30,8 @@ import {
   drawShot,
 } from "@/app/art";
 import { CURRENT_VERSION } from "@/app/versions";
-import { CAMPAIGN_NODES, campaignNode } from "@/lib/campaign";
 import type {
   BuffKind,
-  CampaignProgress,
   GameSaveState,
   LeaderboardRun,
   RunStats,
@@ -55,7 +51,7 @@ const MAX_PENDING_BLIGHTLINGS = 240;
 const MAX_HEALTH = 20;
 
 type Point = { x: number; y: number };
-type Phase = "intermission" | "wave" | "gameover" | "victory";
+type Phase = "intermission" | "wave" | "gameover";
 
 type Tower = {
   kind: TowerKind;
@@ -125,7 +121,6 @@ type Invader = {
   bounty: number;
   unlock: number;
   cityDamage?: number;
-  boss?: boolean;
 };
 
 type WaveAnnouncement = {
@@ -182,8 +177,6 @@ type Game = {
   buffs: BuffKind[];
   pendingBuffChoices: BuffKind[] | null;
   bossesDefeated: number;
-  campaignNodeId: string | null;
-  terrain: Set<string>;
 };
 
 const BLIGHTLINGS: Invader[] = [
@@ -202,7 +195,6 @@ const BOSS: Invader = {
   bounty: 275,
   unlock: 5,
   cityDamage: 5,
-  boss: true,
 };
 
 const TOWER_DATA: Record<
@@ -478,24 +470,12 @@ const INTRO_STEPS = [
 const keyOf = (x: number, y: number) => `${x},${y}`;
 const formatNumber = (value: number) => NUMBER_FORMATTER.format(Math.round(value));
 
-function towerAvailable(game: Game, kind: TowerKind) {
-  return !campaignNode(game.campaignNodeId)?.rules.disabledTowers.includes(kind);
-}
-
 function canManageGuardians(game: Game) {
   return game.phase === "intermission" && !game.paused && !game.pendingBuffChoices;
 }
 
 function canTakeGameAction(game: Game) {
-  return !game.paused && game.phase !== "gameover" && game.phase !== "victory" && !game.pendingBuffChoices;
-}
-
-function spellAvailable(game: Game, kind: SpellKind) {
-  return !campaignNode(game.campaignNodeId)?.rules.disabledSpells.includes(kind);
-}
-
-function firstAvailableTower(game: Game) {
-  return TOWER_ORDER.find((kind) => towerAvailable(game, kind)) ?? "thorn";
+  return !game.paused && game.phase !== "gameover" && !game.pendingBuffChoices;
 }
 
 function formatDuration(seconds: number) {
@@ -517,7 +497,7 @@ function newSeed() {
   return Math.floor(Math.random() * 0x7fffffff);
 }
 
-function calculateDistances(towers: Map<string, Tower>, terrain: Set<string>) {
+function calculateDistances(towers: Map<string, Tower>) {
   const distances = Array.from({ length: ROWS }, () =>
     Array<number>(COLS).fill(Infinity),
   );
@@ -538,7 +518,6 @@ function calculateDistances(towers: Map<string, Tower>, terrain: Set<string>) {
         next.x >= COLS ||
         next.y >= ROWS ||
         towers.has(keyOf(next.x, next.y)) ||
-        terrain.has(keyOf(next.x, next.y)) ||
         distances[next.y][next.x] !== Infinity
       ) {
         continue;
@@ -552,12 +531,11 @@ function calculateDistances(towers: Map<string, Tower>, terrain: Set<string>) {
 
 function createPath(
   towers: Map<string, Tower>,
-  terrain: Set<string>,
   random: () => number,
   randomize = true,
   origin = START,
 ) {
-  const distances = calculateDistances(towers, terrain);
+  const distances = calculateDistances(towers);
   if (!Number.isFinite(distances[origin.y][origin.x])) return null;
   const path = [origin];
   let current = origin;
@@ -586,14 +564,11 @@ function createPath(
   return path;
 }
 
-function createGame(seed = newSeed(), campaignNodeId: string | null = null): Game {
-  const node = campaignNode(campaignNodeId);
-  if (node) seed = node.mapSeed;
+function createGame(seed = newSeed()): Game {
   const rng = mulberry32(seed);
   const towers = new Map<string, Tower>();
-  const terrain = new Set(node?.terrain.map(([x, y]) => keyOf(x, y)) ?? []);
   return {
-    gold: node?.rules.startingGold ?? 500,
+    gold: 500,
     health: MAX_HEALTH,
     wave: 0,
     phase: "intermission",
@@ -621,13 +596,11 @@ function createGame(seed = newSeed(), campaignNodeId: string | null = null): Gam
     towersBuilt: 0,
     towerUpgrades: 0,
     bestWave: 0,
-    message: node
-      ? `${node.rules.difficulty}: ${node.rules.challenge}`
-      : "Grow a guardian maze before the Blight arrives.",
+    message: "Grow a guardian maze before the Blight arrives.",
     messageUntil: 5,
-    route: createPath(towers, terrain, rng, false) ?? [],
-    nextWaveIn: node?.rules.wavePeriod ?? 30,
-    wavePeriod: node?.rules.wavePeriod ?? 30,
+    route: createPath(towers, rng, false) ?? [],
+    nextWaveIn: 30,
+    wavePeriod: 30,
     waveAnnouncement: null,
     spellCharges: { solar: 0, ice: 0, tornado: 0, bloom: 0 },
     spellCasts: { solar: 0, ice: 0, tornado: 0, bloom: 0 },
@@ -636,8 +609,6 @@ function createGame(seed = newSeed(), campaignNodeId: string | null = null): Gam
     buffs: [],
     pendingBuffChoices: null,
     bossesDefeated: 0,
-    campaignNodeId,
-    terrain,
   };
 }
 
@@ -693,9 +664,9 @@ function serializeGame(game: Game): GameSaveState {
  * Rebuilds a run from a between-waves snapshot. The restored run always starts
  * in an intermission so the player gets their build window back.
  */
-function restoreGame(save: GameSaveState, campaignNodeId: string | null = null): Game {
-  const game = createGame(save.seed, campaignNodeId);
-  game.wave = campaignNodeId ? Math.min(save.wave, 19) : save.wave;
+function restoreGame(save: GameSaveState): Game {
+  const game = createGame(save.seed);
+  game.wave = save.wave;
   game.gold = save.gold;
   game.health = save.health;
   game.bestWave = Math.max(save.bestWave, save.wave);
@@ -715,14 +686,8 @@ function restoreGame(save: GameSaveState, campaignNodeId: string | null = null):
   game.rushGold = save.stats.rushGold;
   game.timeSaved = save.stats.timeSaved;
 
-  let terrainRefund = 0;
   for (const tower of save.towers) {
-    const key = keyOf(tower.x, tower.y);
-    if (game.terrain.has(key)) {
-      terrainRefund += tower.spent ?? TOWER_DATA[tower.kind].cost;
-      continue;
-    }
-    game.towers.set(key, {
+    game.towers.set(keyOf(tower.x, tower.y), {
       kind: tower.kind,
       level: tower.level,
       spent: tower.spent ?? TOWER_DATA[tower.kind].cost,
@@ -731,14 +696,9 @@ function restoreGame(save: GameSaveState, campaignNodeId: string | null = null):
       kills: tower.kills,
     });
   }
-  game.gold += terrainRefund;
 
-  game.route = createPath(game.towers, game.terrain, game.rng, false) ?? [];
-  game.message = campaignNodeId && save.wave >= 20
-    ? "Chapter restored before the final boss. Prepare for wave 20."
-    : terrainRefund > 0
-      ? `Chapter terrain shifted. Blocked guardians were refunded ${formatNumber(terrainRefund)} gold.`
-    : `Run restored at wave ${save.wave}. Rebuild before the next Blight.`;
+  game.route = createPath(game.towers, game.rng, false) ?? [];
+  game.message = `Run restored at wave ${save.wave}. Rebuild before the next Blight.`;
   game.messageUntil = 6;
   return game;
 }
@@ -816,12 +776,7 @@ function distance(a: Point, b: Point) {
 
 function makeWave(game: Game) {
   const wave = game.wave;
-  if (wave % 5 === 0) {
-    const configured = campaignNode(game.campaignNodeId)?.bosses[Math.min(3, wave / 5 - 1)];
-    return configured
-      ? [{ ...configured, unlock: wave, boss: true }]
-      : [BOSS];
-  }
+  if (wave % 5 === 0) return [BOSS];
   const available = BLIGHTLINGS.filter((invader) => invader.unlock <= wave);
   const count = 8 + wave * 2;
   const queue: Invader[] = [];
@@ -839,7 +794,6 @@ function queueNextWave(
   rushStreak = 0,
   rushMultiplier = 1,
 ) {
-  if (game.campaignNodeId && game.wave >= 20) return;
   game.wave += 1;
   const levelBonus = 35 + game.wave * 5;
   const bossWave = game.wave % 5 === 0;
@@ -859,9 +813,8 @@ function queueNextWave(
   game.gold += earlyBonus + levelBonus;
   game.rushGold += earlyBonus;
   game.goldEarned += earlyBonus + levelBonus;
-  const waveBoss = bossWave ? wave[0] : null;
   game.message = bossWave
-    ? `Boss wave ${formatNumber(game.wave)} — ${waveBoss?.name} carries a ${formatNumber(waveBoss?.bounty ?? 0)} gold bounty!`
+    ? `Boss wave ${formatNumber(game.wave)} — The Grime King carries a ${formatNumber(BOSS.bounty)} gold bounty!`
     : earlyBonus
       ? `Wave ${formatNumber(game.wave)} rushed — +${formatNumber(earlyBonus)} rush gold and +${formatNumber(levelBonus)} level gold!`
       : `Wave ${formatNumber(game.wave)} — +${formatNumber(levelBonus)} level gold.`;
@@ -885,7 +838,7 @@ function rerouteEnemies(game: Game) {
       x: Math.max(0, Math.min(COLS - 1, Math.floor(enemy.x))),
       y: Math.max(0, Math.min(ROWS - 1, Math.floor(enemy.y))),
     };
-    const path = createPath(game.towers, game.terrain, game.rng, true, origin);
+    const path = createPath(game.towers, game.rng, true, origin);
     if (path) {
       enemy.path = path;
       enemy.pathIndex = 0;
@@ -893,12 +846,9 @@ function rerouteEnemies(game: Game) {
   }
 }
 
-function upcomingInvaders(wave: number, campaignNodeId: string | null) {
+function upcomingInvaders(wave: number) {
   const next = wave + 1;
-  if (next % 5 === 0) {
-    const configured = campaignNode(campaignNodeId)?.bosses[Math.min(3, next / 5 - 1)];
-    return configured ? [{ ...configured, unlock: next, boss: true }] : [BOSS];
-  }
+  if (next % 5 === 0) return [BOSS];
   return BLIGHTLINGS.filter((invader) => invader.unlock <= next).slice(0, 5);
 }
 
@@ -1272,7 +1222,6 @@ type GameProps = {
   initialLeaderboard: LeaderboardRun[];
   bestWave: number;
   lastSeenVersionId: string | null;
-  campaignProgress: CampaignProgress;
 };
 
 export default function NatureDefenseGame({
@@ -1283,7 +1232,6 @@ export default function NatureDefenseGame({
   initialLeaderboard,
   bestWave,
   lastSeenVersionId,
-  campaignProgress: initialCampaignProgress,
 }: GameProps) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1299,20 +1247,14 @@ export default function NatureDefenseGame({
       initial.paused = true;
     }
     initial.bestWave = Math.max(bestWave, initial.bestWave);
-    initial.paused = true;
     gameRef.current = initial;
   }
-  const [homeView, setHomeView] = useState<"modes" | "campaign" | null>("modes");
-  const [campaignProgress, setCampaignProgress] = useState(initialCampaignProgress);
-  const campaignProgressRef = useRef(initialCampaignProgress);
-  const [storyNodeId, setStoryNodeId] = useState<string | null>(null);
   const renderScaleRef = useRef(1);
   const hoverRef = useRef<Point | null>(null);
   const selectedKindRef = useRef<TowerKind>("thorn");
   const buildingRef = useRef(true);
   const selectedSpellRef = useRef<SpellKind | null>(null);
   const selectedCellRef = useRef<Point | null>(null);
-  const selectedEnemyIdRef = useRef<number | null>(null);
   const helpPausedRef = useRef(false);
   const introPausedRef = useRef(false);
   const versionPausedRef = useRef(false);
@@ -1323,8 +1265,6 @@ export default function NatureDefenseGame({
   const [isBuilding, setIsBuilding] = useState(true);
   const [selectedSpell, setSelectedSpell] = useState<SpellKind | null>(null);
   const [selectedCell, setSelectedCell] = useState<Point | null>(null);
-  const [selectedEnemyId, setSelectedEnemyId] = useState<number | null>(null);
-  const [selectedUpcoming, setSelectedUpcoming] = useState<Invader | null>(null);
   const [whatsNewOpen, setWhatsNewOpen] = useState(
     !isNewProfile && lastSeenVersionId !== CURRENT_VERSION.version,
   );
@@ -1357,13 +1297,6 @@ export default function NatureDefenseGame({
   } | null>(null);
 
   const refresh = useCallback(() => setRevision((revision) => revision + 1), []);
-
-  const storeCampaign = useCallback(async (progress: CampaignProgress) => {
-    campaignProgressRef.current = progress;
-    setCampaignProgress(progress);
-    const result = await saveCampaignProgress(progress);
-    if (!result.ok) setSaveError(result.error);
-  }, []);
 
   const notify = useCallback((message: string) => {
     const game = gameRef.current;
@@ -1414,10 +1347,6 @@ export default function NatureDefenseGame({
     selectedCellRef.current = selectedCell;
   }, [selectedCell]);
 
-  useEffect(() => {
-    selectedEnemyIdRef.current = selectedEnemyId;
-  }, [selectedEnemyId]);
-
   // The board is vector-drawn, so the backing store has to match the real
   // display pixels or everything blurs — CSS stretches the canvas to fit.
   useEffect(() => {
@@ -1457,13 +1386,7 @@ export default function NatureDefenseGame({
     if (payload === lastSavedRef.current) return;
 
     savingRef.current = true;
-    const result = game.campaignNodeId
-      ? await saveCampaignProgress({
-          ...campaignProgressRef.current,
-          activeNodeId: game.campaignNodeId,
-          activeGame: snapshot,
-        })
-      : await saveGameState(snapshot);
+    const result = await saveGameState(snapshot);
     savingRef.current = false;
     if (result.ok) {
       lastSavedRef.current = payload;
@@ -1512,7 +1435,7 @@ export default function NatureDefenseGame({
 
   // A wilted run posts itself to the leaderboard under the profile name.
   useEffect(() => {
-    if (gamePhase === "gameover" && !gameRef.current.campaignNodeId) void publishRun();
+    if (gamePhase === "gameover") void publishRun();
   }, [gamePhase, publishRun]);
 
   const damageEnemy = useCallback(
@@ -1531,7 +1454,7 @@ export default function NatureDefenseGame({
         );
         game.gold += bounty;
         game.goldEarned += bounty;
-        if (enemy.invader.boss && !game.pendingBuffChoices) {
+        if (enemy.invader === BOSS && !game.pendingBuffChoices) {
           offerBuffChoices(game);
         }
       }
@@ -1553,7 +1476,7 @@ export default function NatureDefenseGame({
         );
         game.gold += bounty;
         game.goldEarned += bounty;
-        if (enemy.invader.boss && !game.pendingBuffChoices) {
+        if (enemy.invader === BOSS && !game.pendingBuffChoices) {
           offerBuffChoices(game);
         }
       }
@@ -1708,11 +1631,10 @@ export default function NatureDefenseGame({
   );
 
   const spawnEnemy = useCallback((game: Game, invader: Invader) => {
-    const path = createPath(game.towers, game.terrain, game.rng, true);
+    const path = createPath(game.towers, game.rng, true);
     if (!path) return;
     const waveScale = Math.pow(1.16, game.wave - 1);
-    const rules = campaignNode(game.campaignNodeId)?.rules;
-    const maxHp = 55 * waveScale * invader.hp * (rules?.enemyHpMultiplier ?? 1);
+    const maxHp = 55 * waveScale * invader.hp;
     game.enemies.push({
       id: Math.floor(game.rng() * 0x7fffffff),
       invader,
@@ -1722,10 +1644,7 @@ export default function NatureDefenseGame({
       y: path[0].y + 0.5,
       hp: maxHp,
       maxHp,
-      speed:
-        (1.76 + Math.min(game.wave, 40) * 0.013) *
-        invader.speed *
-        (rules?.enemySpeedMultiplier ?? 1),
+      speed: (1.76 + Math.min(game.wave, 40) * 0.013) * invader.speed,
       bounty: Math.max(1, Math.round(invader.bounty * (1 + game.wave * 0.025))),
       cityDamage: invader.cityDamage ?? 1,
       slowUntil: 0,
@@ -1739,14 +1658,13 @@ export default function NatureDefenseGame({
   const updateGame = useCallback(
     (rawDelta: number) => {
       const game = gameRef.current;
-      if (game.paused || game.phase === "gameover" || game.phase === "victory") return;
+      if (game.paused || game.phase === "gameover") return;
       const frameDelta = Math.min(rawDelta, 0.05);
       game.realElapsed += frameDelta;
       const delta = frameDelta * game.speed;
       game.elapsed += delta;
-      const campaignFinalWave = Boolean(game.campaignNodeId && game.wave >= 20);
-      if (!campaignFinalWave) game.nextWaveIn -= delta;
-      if (!campaignFinalWave && game.nextWaveIn <= 0) {
+      game.nextWaveIn -= delta;
+      if (game.nextWaveIn <= 0) {
         queueNextWave(game);
         syncBest(game.wave);
       }
@@ -1808,7 +1726,7 @@ export default function NatureDefenseGame({
               distance({ x: effect.x, y: effect.y }, { x: enemy.x, y: enemy.y }) <= 0.82 &&
               game.elapsed - (effect.hits[enemy.id] ?? -Infinity) > 1.1
             ) {
-              const path = createPath(game.towers, game.terrain, game.rng, true);
+              const path = createPath(game.towers, game.rng, true);
               if (path) {
                 enemy.path = path;
                 enemy.pathIndex = 0;
@@ -1887,27 +1805,12 @@ export default function NatureDefenseGame({
         const clearBonus = 20 + game.wave * 2;
         game.gold += clearBonus;
         game.goldEarned += clearBonus;
-        if (game.campaignNodeId && game.wave >= 20) {
-          game.phase = "victory";
-          const progress = campaignProgressRef.current;
-          const completedNodeIds = progress.completedNodeIds.includes(game.campaignNodeId)
-            ? progress.completedNodeIds
-            : [...progress.completedNodeIds, game.campaignNodeId];
-          void storeCampaign({
-            version: 1,
-            completedNodeIds,
-            activeNodeId: null,
-            activeGame: null,
-          });
-          setStoryNodeId(game.campaignNodeId);
-        } else {
-          game.phase = "intermission";
-        }
+        game.phase = "intermission";
         game.message = `Grove clear — +${formatNumber(clearBonus)} gold. Build before the next Blight.`;
         game.messageUntil = game.elapsed + 4;
       }
     },
-    [damageEnemyWithSpell, fireTower, refresh, spawnEnemy, storeCampaign, syncBest],
+    [damageEnemyWithSpell, fireTower, refresh, spawnEnemy, syncBest],
   );
 
   const drawGame = useCallback(() => {
@@ -1920,15 +1823,7 @@ export default function NatureDefenseGame({
     context.setTransform(scale, 0, 0, scale, 0, 0);
     context.clearRect(0, 0, WIDTH, HEIGHT);
 
-    const node = campaignNode(game.campaignNodeId);
-    drawGrass(context, COLS, ROWS, CELL, game.elapsed, node?.palette, node?.mapSeed);
-    if (node) {
-      for (const [x, y] of node.terrain) {
-        drawInCell(context, x, y, () =>
-          drawCampaignTerrain(context, node.terrainKind, game.elapsed),
-        );
-      }
-    }
+    drawGrass(context, COLS, ROWS, CELL, game.elapsed);
     // Endpoints overflow their cell a little on purpose.
     drawInCell(context, START.x, START.y, () => {
       context.scale(1.2, 1.2);
@@ -1983,9 +1878,7 @@ export default function NatureDefenseGame({
         }
         context.setLineDash([]);
       } else if (buildingRef.current) {
-        const occupied =
-          game.towers.has(keyOf(hover.x, hover.y)) ||
-          game.terrain.has(keyOf(hover.x, hover.y));
+        const occupied = game.towers.has(keyOf(hover.x, hover.y));
         const forbidden =
           (hover.x === START.x && hover.y === START.y) ||
           (hover.x === CITY.x && hover.y === CITY.y);
@@ -2048,18 +1941,6 @@ export default function NatureDefenseGame({
           CELL - 4,
         );
       }
-    }
-
-    const selectedEnemyId = selectedEnemyIdRef.current;
-    const selectedEnemy = selectedEnemyId === null
-      ? null
-      : game.enemies.find((enemy) => enemy.id === selectedEnemyId && !enemy.dead);
-    if (selectedEnemy) {
-      context.strokeStyle = "#f7dc58";
-      context.lineWidth = 2.5;
-      context.beginPath();
-      context.arc(selectedEnemy.x * CELL, selectedEnemy.y * CELL, 21, 0, Math.PI * 2);
-      context.stroke();
     }
 
     for (const effect of game.spellEffects) {
@@ -2212,18 +2093,12 @@ export default function NatureDefenseGame({
   const selectTower = useCallback((kind: TowerKind) => {
     const game = gameRef.current;
     if (!canTakeGameAction(game)) return;
-    if (!towerAvailable(game, kind)) {
-      notify(`${TOWER_DATA[kind].name} cannot take root in this chapter.`);
-      return;
-    }
     cancelSpell(false);
     buildingRef.current = true;
     setSelectedKind(kind);
     setIsBuilding(true);
     setSelectedCell(null);
-    setSelectedEnemyId(null);
-    setSelectedUpcoming(null);
-  }, [cancelSpell, notify]);
+  }, [cancelSpell]);
 
   const cancelBuilding = useCallback(() => {
     if (!buildingRef.current) return false;
@@ -2239,10 +2114,6 @@ export default function NatureDefenseGame({
       const game = gameRef.current;
       if (!canTakeGameAction(game)) return;
       const spell = SPELL_DATA[kind];
-      if (!spellAvailable(game, kind)) {
-        notify(`${spell.name} is suppressed by this chapter.`);
-        return;
-      }
       const cost = spellCost(game, kind);
       if (game.spellEffects.some((effect) => effect.kind === kind)) {
         notify(spell.name + " is already active.");
@@ -2264,8 +2135,6 @@ export default function NatureDefenseGame({
       }
       selectedSpellRef.current = kind;
       setSelectedCell(null);
-      setSelectedEnemyId(null);
-      setSelectedUpcoming(null);
       setSelectedSpell(kind);
       game.message = `${spell.name} armed — click the field to cast.`;
       game.messageUntil = game.elapsed + 4;
@@ -2385,30 +2254,11 @@ export default function NatureDefenseGame({
         castSpell(armedSpell, { x: point.x + 0.5, y: point.y + 0.5 });
         return;
       }
-      const selectedEnemy = game.enemies
-        .filter((enemy) => !enemy.dead)
-        .map((enemy) => ({ enemy, distance: Math.hypot(enemy.x - (point.x + 0.5), enemy.y - (point.y + 0.5)) }))
-        .filter(({ distance }) => distance < 0.7)
-        .sort((a, b) => a.distance - b.distance)[0]?.enemy;
-      if (selectedEnemy) {
-        setSelectedEnemyId((current) => current === selectedEnemy.id ? null : selectedEnemy.id);
-        setSelectedCell(null);
-        setSelectedUpcoming(null);
-        return;
-      }
       const key = keyOf(point.x, point.y);
       if (game.towers.has(key)) {
         setSelectedCell((current) =>
           current && current.x === point.x && current.y === point.y ? null : point,
         );
-        setSelectedEnemyId(null);
-        setSelectedUpcoming(null);
-        return;
-      }
-      if (!buildingRef.current) {
-        setSelectedCell(null);
-        setSelectedEnemyId(null);
-        setSelectedUpcoming(null);
         return;
       }
       if (!canTakeGameAction(game)) {
@@ -2421,10 +2271,6 @@ export default function NatureDefenseGame({
         notify("The Blight rift and Heartwood must stay clear.");
         return;
       }
-      if (game.terrain.has(key)) {
-        notify("That ground is claimed by the chapter's terrain.");
-        return;
-      }
       if (
         game.enemies.some(
           (enemy) =>
@@ -2435,10 +2281,6 @@ export default function NatureDefenseGame({
         return;
       }
       const data = TOWER_DATA[selectedKind];
-      if (!towerAvailable(game, selectedKind)) {
-        notify(`${data.name} cannot take root in this chapter.`);
-        return;
-      }
       if (game.gold < data.cost) {
         notify(`Need ${data.cost - game.gold} more gold for ${data.name}.`);
         return;
@@ -2452,7 +2294,7 @@ export default function NatureDefenseGame({
         kills: 0,
       };
       game.towers.set(key, tower);
-      const route = createPath(game.towers, game.terrain, game.rng, false);
+      const route = createPath(game.towers, game.rng, false);
       if (!route) {
         game.towers.delete(key);
         notify("That blocks the last route to the Heartwood.");
@@ -2498,10 +2340,7 @@ export default function NatureDefenseGame({
 
   const startWave = useCallback(() => {
     const game = gameRef.current;
-    if (
-      !canTakeGameAction(game) ||
-      (game.campaignNodeId && game.wave >= 20)
-    ) return;
+    if (!canTakeGameAction(game)) return;
     const pendingBlightlings =
       game.waveQueue.length + game.enemies.filter((enemy) => !enemy.dead).length;
     if (pendingBlightlings >= MAX_PENDING_BLIGHTLINGS) {
@@ -2520,8 +2359,6 @@ export default function NatureDefenseGame({
     queueNextWave(game, bonus, rushStreak, rushMultiplier);
     syncBest(game.wave);
     setSelectedCell(null);
-    setSelectedEnemyId(null);
-    setSelectedUpcoming(null);
     refresh();
   }, [notify, refresh, syncBest]);
 
@@ -2535,7 +2372,7 @@ export default function NatureDefenseGame({
     const refund = Math.floor(tower.spent * 0.75);
     game.gold += refund;
     game.towers.delete(key);
-    game.route = createPath(game.towers, game.terrain, game.rng, false) ?? [];
+    game.route = createPath(game.towers, game.rng, false) ?? [];
     rerouteEnemies(game);
     setSelectedCell(null);
     notify(`${TOWER_DATA[tower.kind].name} sold for ${formatNumber(refund)} gold.`);
@@ -2603,60 +2440,20 @@ export default function NatureDefenseGame({
   );
 
   const restart = useCallback(() => {
-    const current = gameRef.current;
-    const bestWave = current.bestWave;
-    const next = createGame(undefined, current.campaignNodeId);
+    const bestWave = gameRef.current.bestWave;
+    const next = createGame();
     next.bestWave = bestWave;
     gameRef.current = next;
-    const startingTower = firstAvailableTower(next);
-    selectedKindRef.current = startingTower;
     selectedSpellRef.current = null;
     setSelectedCell(null);
-    setSelectedEnemyId(null);
-    setSelectedUpcoming(null);
     setSelectedSpell(null);
-    setSelectedKind(startingTower);
+    setSelectedKind("thorn");
     setRunSubmitted(false);
     lastTimeRef.current = 0;
     lastSavedRef.current = null;
     void persistGame();
     refresh();
   }, [persistGame, refresh]);
-
-  const enterEndless = useCallback(() => {
-    const next = savedGame ? restoreGame(savedGame) : createGame();
-    next.bestWave = Math.max(bestWave, next.bestWave);
-    next.paused = false;
-    gameRef.current = next;
-    lastTimeRef.current = 0;
-    setHomeView(null);
-    refresh();
-  }, [bestWave, refresh, savedGame]);
-
-  const openCampaignMap = useCallback(() => {
-    gameRef.current.paused = true;
-    setHomeView("campaign");
-    refresh();
-  }, [refresh]);
-
-  const startCampaignNode = useCallback((nodeId: string, resume: boolean) => {
-    const progress = campaignProgressRef.current;
-    const next = resume && progress.activeNodeId === nodeId && progress.activeGame
-      ? restoreGame(progress.activeGame, nodeId)
-      : createGame(undefined, nodeId);
-    next.paused = false;
-    gameRef.current = next;
-    const startingTower = firstAvailableTower(next);
-    selectedKindRef.current = startingTower;
-    setSelectedKind(startingTower);
-    lastTimeRef.current = 0;
-    lastSavedRef.current = null;
-    setRunSubmitted(false);
-    setStoryNodeId(nodeId);
-    setHomeView(null);
-    void storeCampaign({ ...progress, activeNodeId: nodeId, activeGame: serializeGame(next) });
-    refresh();
-  }, [refresh, storeCampaign]);
 
   const requestRestart = useCallback(() => {
     if (window.confirm("Start a fresh run? Your current maze will be lost.")) {
@@ -2717,14 +2514,14 @@ export default function NatureDefenseGame({
     }
     const versionPreviewRequested =
       new URLSearchParams(window.location.search).get("version-preview") === "1";
-    if (seen || whatsNewOpen || versionPreviewRequested || homeView) return;
+    if (seen || whatsNewOpen || versionPreviewRequested) return;
     const game = gameRef.current;
     introPausedRef.current = game.paused;
     game.paused = true;
     setIntroStep(0);
     setIntroOpen(true);
     refresh();
-  }, [homeView, refresh, whatsNewOpen]);
+  }, [refresh, whatsNewOpen]);
 
   useEffect(() => {
     if (!introOpen) {
@@ -2764,7 +2561,6 @@ export default function NatureDefenseGame({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
-      if (homeView) return;
       if (whatsNewOpen) return;
       if (event.key === "Tab") {
         if (
@@ -2840,11 +2636,7 @@ export default function NatureDefenseGame({
           refresh();
         }
         else if (cancelBuilding()) return;
-        else {
-          setSelectedCell(null);
-          setSelectedEnemyId(null);
-          setSelectedUpcoming(null);
-        }
+        else setSelectedCell(null);
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
@@ -2859,26 +2651,16 @@ export default function NatureDefenseGame({
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", closeRunOverview);
     };
-  }, [cancelBuilding, cancelSpell, closeHelp, closeIntro, groveBuildOpen, helpOpen, homeView, introOpen, isNewProfile, leaderboardOpen, nextIntroStep, openHelp, profileOpen, refresh, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected, whatsNewOpen]);
+  }, [cancelBuilding, cancelSpell, closeHelp, closeIntro, groveBuildOpen, helpOpen, introOpen, isNewProfile, leaderboardOpen, nextIntroStep, openHelp, profileOpen, refresh, requestRestart, selectSpell, selectTower, sellSelected, setSpeed, startWave, togglePause, upgradeSelected, whatsNewOpen]);
 
   const game = gameRef.current;
   const guardianActionsAvailable = canManageGuardians(game);
   const gameActionsAvailable = canTakeGameAction(game);
-  const campaignFinalWave = Boolean(game.campaignNodeId && game.wave >= 20);
   const inspectedTower = selectedCell
     ? game.towers.get(keyOf(selectedCell.x, selectedCell.y))
     : undefined;
   const inspectedUpgradeCost = inspectedTower ? upgradeCost(inspectedTower) : null;
-  const nextInvaders = useMemo(
-    () => upcomingInvaders(game.wave, game.campaignNodeId),
-    [game.campaignNodeId, game.wave],
-  );
-  const inspectedEnemy = selectedEnemyId === null
-    ? undefined
-    : game.enemies.find((enemy) => enemy.id === selectedEnemyId && !enemy.dead);
-  const upcomingWave = game.wave + 1;
-  const upcomingWaveScale = Math.pow(1.16, upcomingWave - 1);
-  const upcomingTotal = upcomingWave % 5 === 0 ? 1 : 8 + upcomingWave * 2;
+  const nextInvaders = useMemo(() => upcomingInvaders(game.wave), [game.wave]);
   const rushWindow = Math.max(0, 4 - (game.realElapsed - game.lastRushAt));
   const nextRushStreak = rushWindow > 0 ? game.rushStreak + 1 : 1;
   const nextRushMultiplier = Math.min(
@@ -2901,86 +2683,6 @@ export default function NatureDefenseGame({
 
   return (
     <main className="game-shell">
-      {homeView ? (
-        <div className="mode-backdrop" role="presentation">
-          {homeView === "modes" ? (
-            <section className="mode-picker" role="dialog" aria-modal="true" aria-label="Choose a game mode">
-              <p className="eyebrow">Choose your path</p>
-              <div className="mode-cards">
-                <button onClick={enterEndless}>
-                  <span aria-hidden="true">∞</span>
-                  <strong>Endless stand</strong>
-                  <p>Build without limits, chase a new record, and climb the guardians&apos; leaderboard.</p>
-                  <small>{savedGame ? `Resume at wave ${savedGame.wave}` : "Begin a fresh stand"}</small>
-                </button>
-                <button onClick={openCampaignMap}>
-                  <span aria-hidden="true">✦</span>
-                  <strong>The Green Road</strong>
-                  <p>Journey through five handcrafted chapters, cleanse their wardens, and face the Grime King.</p>
-                  <small>{campaignProgress.completedNodeIds.length}/5 regions restored</small>
-                </button>
-              </div>
-            </section>
-          ) : (
-            <section className="campaign-map" role="dialog" aria-modal="true" aria-labelledby="campaign-title">
-              <header>
-                <div>
-                  <p className="eyebrow">Campaign · The Green Road</p>
-                  <h2 id="campaign-title">Carry the last living seed</h2>
-                  <p>Each region holds 20 waves, three wardens, and one final ruler.</p>
-                </div>
-                <button onClick={() => setHomeView("modes")} aria-label="Back to mode selection">← Modes</button>
-              </header>
-              <div className="campaign-path">
-                {CAMPAIGN_NODES.map((node, index) => {
-                  const completed = campaignProgress.completedNodeIds.includes(node.id);
-                  const unlocked = index === 0 || campaignProgress.completedNodeIds.includes(CAMPAIGN_NODES[index - 1].id);
-                  const resumable = campaignProgress.activeNodeId === node.id && Boolean(campaignProgress.activeGame);
-                  return (
-                    <article
-                      key={node.id}
-                      className={`${completed ? "completed" : ""} ${unlocked ? "" : "locked"}`}
-                      style={{ "--node-a": node.palette[0], "--node-b": node.palette[1] } as React.CSSProperties}
-                    >
-                      <div className="campaign-node-number">{completed ? "✓" : node.order}</div>
-                      <div>
-                        <small>{node.region}</small>
-                        <h3>{node.name}</h3>
-                        <div className="campaign-difficulty">
-                          <strong>{node.rules.difficulty}</strong>
-                          <span aria-label={`Threat ${node.rules.threat} of 5`}>{"◆".repeat(node.rules.threat)}{"◇".repeat(5 - node.rules.threat)}</span>
-                        </div>
-                        <p>{node.story}</p>
-                        <p className="campaign-challenge">{node.rules.challenge}</p>
-                        <div className="campaign-bosses">
-                          {node.bosses.map((boss, bossIndex) => (
-                            <span key={boss.name}>{(bossIndex + 1) * 5} · {boss.name}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <button
-                        className="primary-action"
-                        disabled={!unlocked}
-                        onClick={() => startCampaignNode(node.id, resumable)}
-                      >
-                        {!unlocked
-                          ? "Road sealed"
-                          : resumable
-                            ? (campaignProgress.activeGame?.wave ?? 0) >= 20
-                              ? "Resume final boss"
-                              : `Resume wave ${campaignProgress.activeGame?.wave}`
-                            : completed
-                              ? "Replay chapter"
-                              : "Begin chapter"}
-                      </button>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-        </div>
-      ) : null}
       {whatsNewOpen ? (
         <div className="whats-new-backdrop" role="presentation">
           <section className="whats-new-modal" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
@@ -3008,6 +2710,20 @@ export default function NatureDefenseGame({
               <h1>Nature&apos;s Last Stand</h1>
             </div>
 
+            <div className="hud-stats" aria-label="Current run statistics">
+              <div className="stat gold-value">
+                <b>{formatNumber(game.gold)}</b>
+                <i>gold</i>
+              </div>
+              <div className="stat" ref={healthRef}>
+                <b className={game.health <= 5 ? "danger-value" : ""}>
+                  {game.health}
+                  <small>/{MAX_HEALTH}</small>
+                </b>
+                <i>heartwood</i>
+              </div>
+            </div>
+
             <div ref={hudActionsRef} className="hud-actions">
               <span className={`phase-pill ${game.phase}`}>
                 <b>Wave {formatNumber(game.wave)}</b>
@@ -3017,11 +2733,9 @@ export default function NatureDefenseGame({
                 <button
                   className={`rush-button ${rushWindow > 0 ? "chain-active" : ""}`}
                 onClick={startWave}
-                disabled={!gameActionsAvailable || campaignFinalWave}
+                disabled={!gameActionsAvailable}
                 aria-label={
-                  campaignFinalWave
-                    ? "Campaign final wave in progress"
-                    : rushWindow > 0
+                  rushWindow > 0
                     ? `Continue rush chain at ${nextRushMultiplier.toFixed(2)} times gold`
                     : `Call wave ${game.wave + 1} early`
                 }
@@ -3031,9 +2745,8 @@ export default function NatureDefenseGame({
                   } as React.CSSProperties
                 }
               >
-                {campaignFinalWave ? "Final wave" : (
-                  <>{rushWindow > 0 ? `Chain ×${nextRushStreak}` : "Rush"}{" "}+{formatNumber(rushBonus)} <kbd>Space</kbd></>
-                )}
+                {rushWindow > 0 ? `Chain ×${nextRushStreak}` : "Rush"}
+                {" "}+{formatNumber(rushBonus)} <kbd>Space</kbd>
                 </button>
               </div>
               <div className="segmented">
@@ -3062,18 +2775,6 @@ export default function NatureDefenseGame({
                 </button>
 
                 <hr />
-
-                <button
-                  onClick={() => {
-                    gameRef.current.paused = true;
-                    setHomeView("modes");
-                    refresh();
-                  }}
-                  aria-label="Open mode selection"
-                  title="Home"
-                >
-                  ⌂
-                </button>
 
                 {game.buffs.length ? (
                   <button
@@ -3150,28 +2851,17 @@ export default function NatureDefenseGame({
               <span className="gold-value"><b>{formatNumber(game.gold)}</b> gold</span>
             </div>
 
-            <div className="wave-peek" aria-label={campaignFinalWave ? "Campaign final wave" : `Upcoming wave ${upcomingWave}`}>
+            <div className="wave-peek" aria-label={`Upcoming wave ${game.wave + 1}`}>
               <span>
-                {campaignFinalWave ? "Final boss" : `Next · ${formatNumber((game.wave + 1) % 5 === 0 ? 1 : 8 + (game.wave + 1) * 2)}`}
+                Next · {formatNumber((game.wave + 1) % 5 === 0 ? 1 : 8 + (game.wave + 1) * 2)}
               </span>
-              {!campaignFinalWave ? <div>
+              <div>
                 {nextInvaders.map((invader) => (
-                  <button
-                    key={invader.name}
-                    type="button"
-                    className={selectedUpcoming?.name === invader.name ? "selected" : ""}
-                    onClick={() => {
-                      setSelectedUpcoming((current) => current?.name === invader.name ? null : invader);
-                      setSelectedCell(null);
-                      setSelectedEnemyId(null);
-                    }}
-                    title={`Inspect ${invader.name}`}
-                    aria-label={`Inspect upcoming ${invader.name}`}
-                  >
+                  <span key={invader.name} title={invader.name}>
                     <BlightIcon invader={invader} size={26} />
-                  </button>
+                  </span>
                 ))}
-              </div> : null}
+              </div>
             </div>
 
             <div className="board-playfield" ref={boardRef}>
@@ -3284,25 +2974,51 @@ export default function NatureDefenseGame({
                 </div>
               ) : null}
 
-              {game.phase === "victory" && campaignNode(storyNodeId) ? (
-                <div className="game-over campaign-victory">
-                  <div className="game-over-card">
-                    <p className="eyebrow">Chapter restored</p>
-                    <h2>{campaignNode(storyNodeId)?.name}</h2>
-                    <p className="game-over-lede">{campaignNode(storyNodeId)?.victory}</p>
-                    <div className="run-stats">
-                      <div className="featured"><span>Waves held</span><strong>20</strong></div>
-                      <div className="featured"><span>Wardens cleansed</span><strong>4</strong></div>
-                      <div><span>Blightlings cleansed</span><strong>{formatNumber(game.kills)}</strong></div>
-                      <div><span>Battle time</span><strong>{formatDuration(game.realElapsed)}</strong></div>
-                    </div>
-                    <div className="saved-run-actions">
-                      <p>The next stretch of the Green Road is open.</p>
-                      <button className="primary-action" onClick={openCampaignMap}>Continue the journey</button>
-                    </div>
+              {selectedCell && inspectedTower && (
+                <div
+                  className={`tower-popover ${selectedCell.y < 3 ? "below" : ""} ${
+                    selectedCell.x < 3
+                      ? "edge-left"
+                      : selectedCell.x > COLS - 4
+                        ? "edge-right"
+                        : ""
+                  }`}
+                  style={{
+                    left: `${((selectedCell.x + 0.5) / COLS) * 100}%`,
+                    top: `${((selectedCell.y + 0.5) / ROWS) * 100}%`,
+                  }}
+                >
+                  <span className="tower-portrait">
+                    <TowerIcon
+                      kind={inspectedTower.kind}
+                      size={44}
+                      level={inspectedTower.level}
+                    />
+                  </span>
+                  <strong>{TOWER_DATA[inspectedTower.kind].name}</strong>
+                  <span className="tower-level">Level {inspectedTower.level}/{MAX_TOWER_LEVEL}</span>
+                  <span>
+                    {formatNumber(inspectedTower.kills)} cleared · {formatNumber(inspectedTower.damageDone)} cleansing
+                  </span>
+                  <span>
+                    {Math.round(towerStats(inspectedTower, game).damage)} damage · {towerStats(inspectedTower, game).rate.toFixed(1)}/s · {towerStats(inspectedTower, game).range.toFixed(1)} range
+                  </span>
+                  <div className="tower-actions">
+                    <button
+                      className="upgrade-action"
+                      onClick={upgradeSelected}
+                      disabled={inspectedUpgradeCost === null}
+                    >
+                      {inspectedUpgradeCost === null
+                        ? "Maximum level"
+                        : `Upgrade · ${formatNumber(inspectedUpgradeCost)} gold`} <kbd>U</kbd>
+                    </button>
+                    <button className="sell-action" onClick={sellSelected}>
+                      Sell +{formatNumber(Math.floor(inspectedTower.spent * 0.75))} <kbd>S</kbd>
+                    </button>
                   </div>
                 </div>
-              ) : null}
+              )}
 
               {game.phase === "gameover" && (
                 <div className="game-over">
@@ -3370,9 +3086,7 @@ export default function NatureDefenseGame({
                     </div>
 
                     <div className="saved-run-actions">
-                      {game.campaignNodeId ? (
-                        <p>The chapter remains open. Return when the grove is ready.</p>
-                      ) : saveError ? (
+                      {saveError ? (
                         <p role="alert" className="auth-error">
                           Could not post this run: {saveError}
                         </p>
@@ -3383,18 +3097,16 @@ export default function NatureDefenseGame({
                       ) : (
                         <p aria-live="polite">Posting your run…</p>
                       )}
-                      {!game.campaignNodeId && saveError ? (
+                      {saveError ? (
                         <button type="button" onClick={() => void publishRun()}>
                           Try again
                         </button>
                       ) : null}
-                      {game.campaignNodeId ? (
-                        <button type="button" onClick={openCampaignMap}>Campaign map</button>
-                      ) : (
-                        <button type="button" onClick={openLeaderboard}>View leaderboard</button>
-                      )}
+                      <button type="button" onClick={openLeaderboard}>
+                        View leaderboard
+                      </button>
                       <button className="primary-action" onClick={restart}>
-                        {game.campaignNodeId ? "Retry chapter" : "Grow another last stand"}
+                        Grow another last stand
                       </button>
                     </div>
                   </div>
@@ -3422,28 +3134,10 @@ export default function NatureDefenseGame({
                     </button>
                   </div>
                 </>
-              ) : inspectedEnemy ? (
-                <>
-                  <BlightIcon invader={inspectedEnemy.invader} size={38} />
-                  <div className="inspector-summary">
-                    <strong>{inspectedEnemy.invader.name}</strong>
-                    <span>{Math.ceil(inspectedEnemy.hp)}/{Math.ceil(inspectedEnemy.maxHp)} health · {inspectedEnemy.speed.toFixed(1)} speed</span>
-                    <small>{inspectedEnemy.cityDamage} Heartwood damage · {formatNumber(inspectedEnemy.bounty)} gold bounty{inspectedEnemy.slowUntil > game.elapsed ? " · slowed" : ""}{inspectedEnemy.stunUntil > game.elapsed ? " · stunned" : ""}{inspectedEnemy.blindUntil > game.elapsed ? " · blinded" : ""}</small>
-                  </div>
-                </>
-              ) : selectedUpcoming ? (
-                <>
-                  <BlightIcon invader={selectedUpcoming} size={38} />
-                  <div className="inspector-summary">
-                    <strong>{selectedUpcoming.name} · upcoming wave</strong>
-                    <span>{Math.ceil(55 * upcomingWaveScale * selectedUpcoming.hp)} health · {((1.76 + Math.min(upcomingWave, 40) * 0.013) * selectedUpcoming.speed).toFixed(1)} speed</span>
-                    <small>{selectedUpcoming.cityDamage ?? 1} Heartwood damage · {formatNumber(Math.max(1, Math.round(selectedUpcoming.bounty * (1 + upcomingWave * 0.025))))} gold bounty</small>
-                  </div>
-                </>
               ) : (
                 <div className="inspector-summary wave-forecast">
-                  <strong>Wave {upcomingWave} forecast</strong>
-                  <span>{formatNumber(upcomingTotal)} Blightlings incoming · select a creature above to inspect it</span>
+                  <strong>Wave {game.wave + 1} forecast</strong>
+                  <span>{formatNumber((game.wave + 1) % 5 === 0 ? 1 : 8 + (game.wave + 1) * 2)} Blightlings incoming</span>
                 </div>
               )}
             </section>
@@ -3456,14 +3150,13 @@ export default function NatureDefenseGame({
             >
               {TOWER_ORDER.map((kind) => {
                 const tower = TOWER_DATA[kind];
-                const available = towerAvailable(game, kind);
                 return (
                   <button
                     key={kind}
-                    className={`${isBuilding && selectedKind === kind ? "selected" : ""} ${available ? "" : "chapter-locked"}`}
+                    className={isBuilding && selectedKind === kind ? "selected" : ""}
                     onClick={() => selectTower(kind)}
-                    disabled={!available || !gameActionsAvailable}
-                    aria-label={available ? `Select ${tower.name}, ${tower.cost} gold. ${tower.description}` : `${tower.name} unavailable in this chapter`}
+                    disabled={!gameActionsAvailable}
+                    aria-label={`Select ${tower.name}, ${tower.cost} gold. ${tower.description}`}
                     aria-describedby={`tower-tooltip-${kind}`}
                     style={{ "--tower-color": tower.color } as React.CSSProperties}
                   >
@@ -3486,7 +3179,7 @@ export default function NatureDefenseGame({
                         {tower.damage} damage · {tower.rate.toFixed(1)}/s · {tower.range.toFixed(1)} range
                       </span>
                       <span className="tooltip-cost">
-                        {available ? `${tower.cost} gold · press ${tower.hotkey}` : "Unavailable in this chapter"}
+                        {tower.cost} gold · press {tower.hotkey}
                       </span>
                     </span>
                   </button>
@@ -3501,15 +3194,14 @@ export default function NatureDefenseGame({
                 const spell = SPELL_DATA[kind];
                 const charges = game.spellCharges[kind];
                 const cost = spellCost(game, kind);
-                const available = spellAvailable(game, kind);
                 return (
                   <button
                     key={kind}
-                    className={`${selectedSpell === kind ? "selected" : ""} ${charges ? "charged" : ""} ${available ? "" : "chapter-locked"}`}
+                    className={`${selectedSpell === kind ? "selected" : ""} ${charges ? "charged" : ""}`}
                     onClick={() => selectSpell(kind)}
-                    disabled={!available || !gameActionsAvailable}
+                    disabled={!gameActionsAvailable}
                     style={{ "--spell-color": spell.color } as React.CSSProperties}
-                    aria-label={available ? `${charges ? "Arm" : "Buy and arm"} ${spell.name}. ${spell.description}` : `${spell.name} unavailable in this chapter`}
+                    aria-label={`${charges ? "Arm" : "Buy and arm"} ${spell.name}. ${spell.description}`}
                   >
                     <span className="tile-meta">
                       <kbd>{spell.hotkey}</kbd>
@@ -3520,8 +3212,8 @@ export default function NatureDefenseGame({
                     <span className="spell-tooltip" role="tooltip">
                       <strong>{spell.name}</strong>
                       <span>{spell.description}</span>
-                      <span>{available ? (charges ? `${charges} charge ready` : `Buy one charge for ${formatNumber(cost)} gold`) : "Unavailable in this chapter"}</span>
-                      {available ? <b>Press {spell.hotkey}, then click the field</b> : null}
+                      <span>{charges ? `${charges} charge ready` : `Buy one charge for ${formatNumber(cost)} gold`}</span>
+                      <b>Press {spell.hotkey}, then click the field</b>
                     </span>
                   </button>
                 );

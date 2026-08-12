@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getLeaderboard } from "@/lib/data";
 import { CURRENT_VERSION } from "@/app/versions";
 import { createClient } from "@/lib/supabase/server";
-import type { CampaignProgress, GameSaveState, LeaderboardRun } from "@/lib/types";
+import type { GameSaveState, LeaderboardRun } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -16,18 +16,35 @@ async function requireUser() {
   return { supabase, user: data.user };
 }
 
-export async function sendMagicLink(
+export async function signInWithPassword(
   email: string,
-  redirectTo: string,
+  password: string,
 ): Promise<ActionResult> {
   const trimmed = email.trim();
   if (!trimmed) return { ok: false, error: "Enter your email address." };
+  if (!password) return { ok: false, error: "Enter your password." };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email: trimmed,
-    options: { emailRedirectTo: redirectTo },
-  });
+  const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
+
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+): Promise<ActionResult> {
+  const trimmed = email.trim();
+  if (!trimmed) return { ok: false, error: "Enter your email address." };
+  if (password.length < 8) {
+    return { ok: false, error: "Use at least 8 characters for your password." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({ email: trimmed, password });
+  if (!error && !data.session) {
+    return { ok: false, error: "Account created, but automatic sign-in is disabled. Check the Supabase email confirmation setting." };
+  }
 
   return error ? { ok: false, error: error.message } : { ok: true };
 }
@@ -107,21 +124,6 @@ export async function clearGameState(): Promise<ActionResult> {
       .from("game_saves")
       .delete()
       .eq("user_id", user.id);
-    return error ? { ok: false, error: error.message } : { ok: true };
-  } catch (error) {
-    return { ok: false, error: (error as Error).message };
-  }
-}
-
-export async function saveCampaignProgress(
-  progress: CampaignProgress,
-): Promise<ActionResult> {
-  try {
-    const { supabase, user } = await requireUser();
-    const { error } = await supabase.from("campaign_progress").upsert(
-      { user_id: user.id, progress },
-      { onConflict: "user_id" },
-    );
     return error ? { ok: false, error: error.message } : { ok: true };
   } catch (error) {
     return { ok: false, error: (error as Error).message };

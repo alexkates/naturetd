@@ -44,6 +44,7 @@ test("renders the sign-in screen", async () => {
 
   const html = await response.text();
   expect(html).toMatch(/<title>Sign in · Nature&#x27;s Last Stand<\/title>/i);
-  expect(html).toContain("Sign in to defend the Heartwood");
+  expect(html).toContain("Defend the Heartwood");
+  expect(html).toContain("Create account");
   expect(html).not.toMatch(/codex-preview|react-loading-skeleton/i);
 });

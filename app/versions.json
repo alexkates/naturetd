@@ -1,18 +1,5 @@
 [
   {
-    "version": "0.3.0",
-    "title": "The Green Road",
-    "publishedAt": "2026-08-01",
-    "summary": "A five-chapter campaign brings new maps, wardens, challenges, and a journey to the Grime King's throne.",
-    "changes": [
-      "Choose between the classic endless stand and the new five-chapter campaign.",
-      "Explore unique chapter maps with story-driven terrain, escalating threats, and rotating guardian and spell restrictions.",
-      "Face nineteen new campaign wardens before confronting the Grime King in the final chapter.",
-      "Resume campaign chapters across sessions and track each restored region on the Green Road.",
-      "Campaign chapters now end at wave 20 with bosses at waves 5, 10, 15, and 20."
-    ]
-  },
-  {
     "version": "0.2.2",
     "title": "Leaderboard restored",
     "publishedAt": "2026-08-01",

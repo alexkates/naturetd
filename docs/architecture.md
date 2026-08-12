@@ -8,7 +8,7 @@ Next.js 16 (App Router) game client backed by Supabase for auth and persistence.
   - `page.tsx` / `game.tsx` — the game itself, including the profile modal
     (leaderboard display-name management, opened from the account chip)
   - `art.ts` — all board artwork (see [Board art](#board-art) below)
-  - `login/`, `auth/callback/` — passwordless magic-link sign-in flow
+  - `login/` — email-and-password sign-in and account creation
   - `actions.ts` — server actions (auth, save/leaderboard writes)
   - `globals.css`, `design-tokens.css` — styling; no CSS framework beyond Tailwind v4 (postcss plugin)
 
@@ -47,11 +47,6 @@ leaderboard mini-board.
 The house style is documented in the file header — flat fills, one soft-plum ink
 outline, two tones per form, sine-based motion. Follow it when adding a creature
 or tower so the set stays coherent.
-
-Campaign wardens use dedicated `BlightKind` entries and palettes rather than
-reusing ordinary Blightling art. Their shared boss rigs and individual crests
-live in `CAMPAIGN_BOSS_RIGS` in `app/art.ts`; `lib/campaign.ts` maps each boss to
-its art key.
 
 ### Tower rank variants
 
@@ -102,9 +97,6 @@ Three tables, defined in `supabase/migrations/20260727000000_auth_profiles_games
 - `game_saves` — one resumable snapshot per player, autosaved between waves.
 - `game_runs` — every finished run, tagged with the game version that created
   it. This preserves player history across balance changes.
-- `campaign_progress` — the player&apos;s completed campaign nodes plus one
-  resumable campaign chapter. Campaign progress is separate from `game_saves`,
-  so starting the story never overwrites an endless run.
 - `leaderboard` — a version-filtered view over `game_runs`; it contains runs
   from game version 0.2.0 onward and powers the top 10 ranking. This preserves
   pre-0.2.0 runs for profile history without letting them compete with the
@@ -112,27 +104,12 @@ Three tables, defined in `supabase/migrations/20260727000000_auth_profiles_games
 
 Row-level security: saves are private to their owner; profiles and finished runs are publicly readable (needed for the leaderboard).
 
-## Campaign
-
-`lib/campaign.ts` is the campaign source of truth. Each node defines its story,
-visual palette, authored blocking terrain, difficulty rules, restricted loadout,
-deterministic map seed, and bosses for waves 5, 10, 15, and 20. Terrain is
-derived from the node when a save is restored, so campaign save snapshots stay
-small while maps remain stable.
-Nodes unlock in order; the final node ends with the Grime King. The shared game
-loop switches to a finite 20-wave victory condition when a campaign node is
-active, while endless mode keeps its existing rules and leaderboard behavior.
-
 The schema migrations also grant the necessary table privileges to Supabase's
 `anon` and `authenticated` roles. Both grants and RLS policies are required:
 Postgres checks table privileges before evaluating an RLS policy.
 
 ## Auth
 
-Passwordless magic-link only, via Supabase Auth (PKCE flow):
-
-1. `app/login/sign-in-form.tsx` calls a server action with `redirectTo = <origin>/auth/callback`.
-2. Supabase emails a link to `<SUPABASE_URL>/auth/v1/verify?...&redirect_to=<origin>/auth/callback`.
-3. `app/auth/callback/route.ts` calls `exchangeCodeForSession` and redirects into the app.
-
-For this to work against a **local** Supabase instance, the callback URL must be in `supabase/config.toml`'s `additional_redirect_urls` — see [local-development.md](local-development.md).
+Email and password only, via Supabase Auth. The login form calls server actions
+for `signInWithPassword` and `signUp`; email confirmations are disabled so a new
+account receives a session immediately without SMTP.

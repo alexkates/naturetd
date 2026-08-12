@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import type {
   BuffKind,
-  CampaignProgress,
   GameSaveState,
   LeaderboardRun,
   Profile,
@@ -111,17 +110,4 @@ export async function getBestWave(userId: string): Promise<number> {
     .limit(1)
     .maybeSingle();
   return data?.wave ?? 0;
-}
-
-export async function getCampaignProgress(userId: string): Promise<CampaignProgress> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("campaign_progress")
-    .select("progress")
-    .eq("user_id", userId)
-    .maybeSingle();
-  const progress = data?.progress as CampaignProgress | undefined;
-  return progress?.version === 1
-    ? progress
-    : { version: 1, completedNodeIds: [], activeNodeId: null, activeGame: null };
 }

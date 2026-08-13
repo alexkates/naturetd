@@ -58,6 +58,7 @@ type Tower = {
   level: number;
   spent: number;
   cooldown: number;
+  facing: -1 | 1;
   damageDone: number;
   kills: number;
 };
@@ -692,6 +693,7 @@ function restoreGame(save: GameSaveState): Game {
       level: tower.level,
       spent: tower.spent ?? TOWER_DATA[tower.kind].cost,
       cooldown: 0,
+      facing: 1,
       damageDone: tower.damageDone,
       kills: tower.kills,
     });
@@ -884,6 +886,7 @@ function paintTower(
   elapsed: number,
   phase: number,
   level = 1,
+  facing: -1 | 1 = 1,
 ) {
   // Slightly over 1 so a nest fills its cell and reads as built there, rather
   // than as a small object dropped on the grass. Rank adds a little heft on top
@@ -897,8 +900,8 @@ function paintTower(
   context.restore();
   // The guardian perches on the nest rim, overlapping it so the two read as
   // one object rather than a sprite floating over scenery.
-  context.translate(4, GUARDIAN_PERCH[kind]);
-  context.scale(0.58, 0.58);
+  context.translate(4 * facing, GUARDIAN_PERCH[kind]);
+  context.scale(0.58 * facing, 0.58);
   drawGuardian(context, kind, elapsed, phase, level);
 }
 
@@ -911,10 +914,13 @@ function drawTowerAt(
   phase: number,
   alpha: number,
   level = 1,
+  facing: -1 | 1 = 1,
 ) {
   context.save();
   context.globalAlpha = alpha;
-  drawInCell(context, x, y, () => paintTower(context, kind, elapsed, phase, level));
+  drawInCell(context, x, y, () =>
+    paintTower(context, kind, elapsed, phase, level, facing),
+  );
   context.restore();
 }
 
@@ -1217,7 +1223,6 @@ function CurrentRunOverview({ game }: { game: Game }) {
 type GameProps = {
   displayName: string;
   isNewProfile: boolean;
-  email: string;
   savedGame: GameSaveState | null;
   initialLeaderboard: LeaderboardRun[];
   bestWave: number;
@@ -1227,7 +1232,6 @@ type GameProps = {
 export default function NatureDefenseGame({
   displayName: initialDisplayName,
   isNewProfile,
-  email,
   savedGame,
   initialLeaderboard,
   bestWave,
@@ -1503,6 +1507,9 @@ export default function NatureDefenseGame({
       if (!target) return false;
 
       const targetPoint = { x: target.x, y: target.y };
+      if (targetPoint.x !== from.x) {
+        tower.facing = targetPoint.x < from.x ? -1 : 1;
+      }
       if (tower.kind === "boulder") {
         const radius =
           1.18 +
@@ -1837,7 +1844,17 @@ export default function NatureDefenseGame({
     for (const [key, tower] of game.towers) {
       const [x, y] = key.split(",").map(Number);
       const phase = x * 1.7 + y * 2.3;
-      drawTowerAt(context, tower.kind, x, y, game.elapsed, phase, 1, tower.level);
+      drawTowerAt(
+        context,
+        tower.kind,
+        x,
+        y,
+        game.elapsed,
+        phase,
+        1,
+        tower.level,
+        tower.facing,
+      );
       context.fillStyle = TOWER_DATA[tower.kind].color;
       context.strokeStyle = "rgba(255, 250, 240, .85)";
       context.lineWidth = 1;
@@ -2290,6 +2307,7 @@ export default function NatureDefenseGame({
         level: 1,
         spent: data.cost,
         cooldown: 0,
+        facing: 1,
         damageDone: 0,
         kills: 0,
       };
@@ -2820,7 +2838,7 @@ export default function NatureDefenseGame({
                 type="button"
                 className="account-chip"
                 onClick={() => setProfileOpen(true)}
-                title={`Signed in as ${email}`}
+                title={`Playing as ${displayName}`}
               >
                 <span aria-hidden="true">✿</span>
                 <strong>{displayName}</strong>
@@ -3493,7 +3511,7 @@ export default function NatureDefenseGame({
             </form>
             <footer className="profile-footer">
               <span>
-                Signed in as {email}
+                Playing as {displayName}
                 <small className="profile-version">Game version {CURRENT_VERSION.version}</small>
               </span>
               <div>
@@ -3511,7 +3529,7 @@ export default function NatureDefenseGame({
                     })
                   }
                 >
-                  Sign out
+                  Forget this player
                 </button>
               </div>
             </footer>

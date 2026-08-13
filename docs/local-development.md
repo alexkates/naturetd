@@ -1,6 +1,6 @@
 # Local development setup
 
-The app requires a signed-in player, so a working Supabase connection is mandatory even for local dev — there's no offline/mock mode.
+The app requires an anonymous player session, so a working Supabase connection is mandatory even for local dev — there's no offline/mock mode.
 
 ## Option A: point at the real (hosted) Supabase project
 
@@ -57,10 +57,11 @@ To move it, change all four and then `supabase stop && supabase start`.
 (`bun run test` is unaffected — it starts the production server on a random
 high port and passes `-p` explicitly.)
 
-### Local accounts
+### Local players
 
-Create an account directly from `/login` with an email address and a password of
-at least eight characters. Local and production Supabase must keep email
-confirmations disabled; no SMTP or Mailpit step is needed.
+Enter a unique guardian name at `/login`. Local anonymous sign-ins are enabled
+in `supabase/config.toml`. For production, enable **Allow anonymous sign-ins**
+in the Supabase Auth settings. The session is tied to that browser; signing out
+or clearing site data makes the player and their saved progress inaccessible.
 
 Studio (DB browser) is at `http://127.0.0.1:54323` — no auth in local dev.

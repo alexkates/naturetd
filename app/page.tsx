@@ -26,7 +26,6 @@ export default async function Home() {
     <NatureDefenseGame
       displayName={profile?.display_name ?? ""}
       isNewProfile={!profile?.display_name}
-      email={user.email ?? ""}
       savedGame={savedGame}
       initialLeaderboard={leaderboard}
       bestWave={bestWave}

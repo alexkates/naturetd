@@ -11,19 +11,16 @@ Always run these before considering a change done.
 
 ## Manual/browser verification
 
-Most UI changes here (game screen, login, profile) require an authenticated session —
+Most UI changes here (game screen, login, profile) require an anonymous authenticated session —
 there is no logged-out fallback view worth testing except the sign-in form itself.
 
 To verify a change that requires being signed in:
 
 1. Make sure local Supabase is set up and running (see [local-development.md](local-development.md)).
 2. Start the dev server and open it in a browser.
-3. Create a test account with email and password, or sign in with an existing one.
-4. For a *new* account the "Claim your grove name" profile modal opens automatically
-   (`isNewProfile` state — only one footer button, and it can't be dismissed until a
-   name is saved). Set a name, then click the account chip in the game header to
-   reopen the modal and see the *returning* user state (two footer buttons:
-   "Back to the grove" + "Sign out") if that's the state relevant to your change.
+3. Enter a unique guardian name on `/login` to create an anonymous player.
+4. Click the player chip in the game header to open the profile modal. It allows
+   renaming the player or forgetting the current browser-bound player session.
 5. Screenshot / inspect as needed for the specific change.
 
 Don't ask the user to manually check something that can be verified this way —

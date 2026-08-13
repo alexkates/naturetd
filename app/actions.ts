@@ -16,37 +16,40 @@ async function requireUser() {
   return { supabase, user: data.user };
 }
 
-export async function signInWithPassword(
-  email: string,
-  password: string,
-): Promise<ActionResult> {
-  const trimmed = email.trim();
-  if (!trimmed) return { ok: false, error: "Enter your email address." };
-  if (!password) return { ok: false, error: "Enter your password." };
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
-
-  return error ? { ok: false, error: error.message } : { ok: true };
-}
-
-export async function signUpWithPassword(
-  email: string,
-  password: string,
-): Promise<ActionResult> {
-  const trimmed = email.trim();
-  if (!trimmed) return { ok: false, error: "Enter your email address." };
-  if (password.length < 8) {
-    return { ok: false, error: "Use at least 8 characters for your password." };
+export async function startAnonymousGame(displayName: string): Promise<ActionResult> {
+  const name = displayName.trim();
+  if (name.length < 2 || name.length > 24) {
+    return { ok: false, error: "Pick a name between 2 and 24 characters." };
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email: trimmed, password });
-  if (!error && !data.session) {
-    return { ok: false, error: "Account created, but automatic sign-in is disabled. Check the Supabase email confirmation setting." };
+  const { data: userData } = await supabase.auth.getUser();
+  let user = userData.user;
+
+  if (!user) {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) return { ok: false, error: error.message };
+    user = data.user;
   }
 
-  return error ? { ok: false, error: error.message } : { ok: true };
+  if (!user) return { ok: false, error: "Could not start a player session." };
+
+  const { error } = await supabase
+    .from("profiles")
+    .upsert({ id: user.id, display_name: name }, { onConflict: "id" });
+
+  if (error) {
+    return {
+      ok: false,
+      error:
+        error.code === "23505"
+          ? "That name is already claimed by another guardian."
+          : error.message,
+    };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 export async function signOut(): Promise<void> {

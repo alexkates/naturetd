@@ -30,21 +30,22 @@ afterAll(() => {
   server.kill();
 });
 
-test("gates the game behind sign-in", async () => {
+test("gates the game behind a player session", async () => {
   const response = await fetch(origin, { redirect: "manual" });
   expect(response.status).toBeGreaterThanOrEqual(300);
   expect(response.status).toBeLessThan(400);
   expect(response.headers.get("location") ?? "").toContain("/login");
 });
 
-test("renders the sign-in screen", async () => {
+test("renders the player entry screen", async () => {
   const response = await fetch(`${origin}/login`);
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type") ?? "").toMatch(/^text\/html\b/i);
 
   const html = await response.text();
-  expect(html).toMatch(/<title>Sign in · Nature&#x27;s Last Stand<\/title>/i);
+  expect(html).toMatch(/<title>Play · Nature&#x27;s Last Stand<\/title>/i);
   expect(html).toContain("Defend the Heartwood");
-  expect(html).toContain("Create account");
+  expect(html).toContain("Guardian name");
+  expect(html).toContain("No account needed");
   expect(html).not.toMatch(/codex-preview|react-loading-skeleton/i);
 });

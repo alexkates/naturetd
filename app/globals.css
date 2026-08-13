@@ -2781,7 +2781,6 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  animation: auth-gameplay-drift 18s ease-in-out infinite alternate;
 }
 
 .auth-shade {
@@ -2789,11 +2788,6 @@ body {
     radial-gradient(circle at 22% 45%, transparent 0 18%, rgba(24, 14, 31, 0.45) 58%),
     linear-gradient(90deg, rgba(18, 10, 24, 0.28), rgba(18, 10, 24, 0.78));
   backdrop-filter: saturate(0.85);
-}
-
-@keyframes auth-gameplay-drift {
-  from { transform: scale(1.03) translate3d(-0.5%, 0, 0); }
-  to { transform: scale(1.1) translate3d(0.5%, -1%, 0); }
 }
 
 .auth-card {

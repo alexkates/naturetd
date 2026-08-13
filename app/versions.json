@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.3.2",
+    "title": "Magic Links Return",
+    "publishedAt": "2026-08-13",
+    "summary": "Email magic links keep each guardian's grove available across browsers and devices.",
+    "changes": [
+      "Sign in with a one-time email link—no password required.",
+      "Runs, saves, and leaderboard identity now follow the signed-in email account.",
+      "Auth emails are delivered through Resend for more reliable delivery."
+    ]
+  },
+  {
     "version": "0.3.1",
     "title": "Names and Sharper Howls",
     "publishedAt": "2026-08-13",

@@ -1223,6 +1223,7 @@ function CurrentRunOverview({ game }: { game: Game }) {
 type GameProps = {
   displayName: string;
   isNewProfile: boolean;
+  email: string;
   savedGame: GameSaveState | null;
   initialLeaderboard: LeaderboardRun[];
   bestWave: number;
@@ -1232,6 +1233,7 @@ type GameProps = {
 export default function NatureDefenseGame({
   displayName: initialDisplayName,
   isNewProfile,
+  email,
   savedGame,
   initialLeaderboard,
   bestWave,
@@ -2838,7 +2840,7 @@ export default function NatureDefenseGame({
                 type="button"
                 className="account-chip"
                 onClick={() => setProfileOpen(true)}
-                title={`Playing as ${displayName}`}
+                title={`Signed in as ${email}`}
               >
                 <span aria-hidden="true">✿</span>
                 <strong>{displayName}</strong>
@@ -3511,7 +3513,7 @@ export default function NatureDefenseGame({
             </form>
             <footer className="profile-footer">
               <span>
-                Playing as {displayName}
+                Signed in as {email}
                 <small className="profile-version">Game version {CURRENT_VERSION.version}</small>
               </span>
               <div>
@@ -3529,7 +3531,7 @@ export default function NatureDefenseGame({
                     })
                   }
                 >
-                  Forget this player
+                  Sign out
                 </button>
               </div>
             </footer>

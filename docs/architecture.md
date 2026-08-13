@@ -24,7 +24,7 @@ Next.js 16 (App Router) game client backed by Supabase for auth and persistence.
 `app/versions.json` is the player-facing version history. The newest entry is
 the update shown to returning players until its ID is written to
 `profiles.last_seen_version_id`; the header sparkle button reopens it later.
-Dismissal is stored in Supabase for the current browser session.
+Dismissal is stored in Supabase so it follows the player across devices.
 
 `bun run version` is the only command that creates a player announcement. It
 uses the commits since the latest `vX.Y.Z` tag to generate concise notes, then
@@ -93,7 +93,7 @@ Two constraints worth knowing:
 
 Three tables, defined in `supabase/migrations/20260727000000_auth_profiles_games_leaderboard.sql`:
 
-- `profiles` — one row per anonymous player; unique (case-insensitive) `display_name`, 2–24 chars. This is the name shown on the leaderboard.
+- `profiles` — one row per player; unique (case-insensitive) `display_name`, 2–24 chars. This is the name shown on the leaderboard.
 - `game_saves` — one resumable snapshot per player, autosaved between waves.
 - `game_runs` — every finished run, tagged with the game version that created
   it. This preserves player history across balance changes.
@@ -110,8 +110,7 @@ Postgres checks table privileges before evaluating an RLS policy.
 
 ## Auth
 
-Anonymous sessions via Supabase Auth. The login form accepts a unique display
-name, calls `signInAnonymously`, and creates the player's profile. Anonymous
-users still receive the `authenticated` Postgres role, so the existing RLS
-policies protect each player's saves and runs. A player cannot recover the same
-session after signing out, clearing browser data, or moving to another device.
+Passwordless email sessions via Supabase Auth. The login form calls
+`signInWithOtp` to send a magic link; `/auth/callback` exchanges its PKCE code
+for a cookie-backed session. New players claim a unique display name after
+sign-in. Auth emails are delivered through Resend's SMTP integration.

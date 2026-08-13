@@ -1,6 +1,6 @@
 # Local development setup
 
-The app requires an anonymous player session, so a working Supabase connection is mandatory even for local dev — there's no offline/mock mode.
+The app requires a signed-in player, so a working Supabase connection is mandatory even for local dev — there's no offline/mock mode.
 
 ## Option A: point at the real (hosted) Supabase project
 
@@ -57,11 +57,11 @@ To move it, change all four and then `supabase stop && supabase start`.
 (`bun run test` is unaffected — it starts the production server on a random
 high port and passes `-p` explicitly.)
 
-### Local players
+### Local magic-link sign-in
 
-Enter a unique guardian name at `/login`. Local anonymous sign-ins are enabled
-in `supabase/config.toml`. For production, enable **Allow anonymous sign-ins**
-in the Supabase Auth settings. The session is tied to that browser; signing out
-or clearing site data makes the player and their saved progress inaccessible.
+Enter an email address at `/login`. In local development, open Mailpit at
+`http://127.0.0.1:54324`, open the message, and follow its magic link. New
+players then claim a unique guardian name in the profile modal. Production Auth
+mail is sent through Resend SMTP.
 
 Studio (DB browser) is at `http://127.0.0.1:54323` — no auth in local dev.

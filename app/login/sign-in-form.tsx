@@ -1,38 +1,48 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { startAnonymousGame } from "@/app/actions";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SignInForm({ initialError }: { initialError?: string }) {
-  const router = useRouter();
-  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState(initialError ?? "");
+  const [sent, setSent] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
     startTransition(async () => {
-      const result = await startAnonymousGame(name);
-      if (result.ok) {
-        router.replace("/");
-        router.refresh();
-      } else {
-        setError(result.error);
-      }
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (authError) setError(authError.message);
+      else setSent(true);
     });
   };
 
+  if (sent) {
+    return (
+      <div className="auth-sent" role="status">
+        <span aria-hidden="true">✉</span>
+        <h3>Check your email</h3>
+        <p>We sent a magic link to <strong>{email.trim()}</strong>.</p>
+        <button type="button" onClick={() => setSent(false)}>Use a different email</button>
+      </div>
+    );
+  }
+
   return (
     <form className="auth-form" onSubmit={submit}>
-      <label htmlFor="guardian-name">Guardian name</label>
-      <input id="guardian-name" autoComplete="nickname" placeholder="Fern Warden" minLength={2} maxLength={24} value={name} onChange={(event) => setName(event.target.value)} required autoFocus />
+      <label htmlFor="auth-email">Email</label>
+      <input id="auth-email" type="email" autoComplete="email" inputMode="email" placeholder="keeper@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required autoFocus />
       <button className="primary-action" type="submit" disabled={pending}>
-        {pending ? "Entering…" : "Enter the grove"}
+        {pending ? "Sending…" : "Send magic link"}
       </button>
-      {error ? <p className="auth-error" role="alert">{error}</p> : <p className="auth-hint">No account needed. Progress stays with this browser.</p>}
+      {error ? <p className="auth-error" role="alert">{error}</p> : <p className="auth-hint">No password needed. Your progress follows your email.</p>}
     </form>
   );
 }

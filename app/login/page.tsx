@@ -6,7 +6,7 @@ import { supabaseConfigured } from "@/lib/supabase/config";
 
 import SignInForm from "./sign-in-form";
 
-export const metadata: Metadata = { title: "Play" };
+export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage({
   searchParams,
@@ -36,7 +36,7 @@ export default async function LoginPage({
         <p className="eyebrow">The Blight never stops</p>
         <h2>Defend the Heartwood</h2>
         <p className="auth-copy">
-          Pick a guardian name and jump straight into the game.
+          Sign in by email to keep your runs, maze, and leaderboard place.
         </p>
         {supabaseConfigured ? (
           <SignInForm initialError={error} />
@@ -44,7 +44,7 @@ export default async function LoginPage({
           <p className="auth-error" role="alert">
             Supabase is not configured for this deployment. Set
             NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to enable
-            play.
+            sign-in.
           </p>
         )}
       </section>

@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.3.1",
+    "title": "Names and Sharper Howls",
+    "publishedAt": "2026-08-13",
+    "summary": "Jump into the grove without an email, while Wolfwood guardians hit faster and carry more power through every chain.",
+    "changes": [
+      "Start playing with only a guardian name—no email, password, or account setup required.",
+      "Wolfwood base damage increased from 8 to 10 and attack rate increased from 0.92 to 1 attack per second.",
+      "Wolfwood chains now retain 82% damage per jump, up from 78%.",
+      "Guardians now turn to face their targets when attacking."
+    ]
+  },
+  {
     "version": "0.2.2",
     "title": "Leaderboard restored",
     "publishedAt": "2026-08-01",

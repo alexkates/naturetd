@@ -251,8 +251,8 @@ const TOWER_DATA: Record<
     color: "#e0b23a",
     tag: "Chain · multi-target",
     description: "Wolves chain bright spirit sparks",
-    damage: 8,
-    rate: 0.92,
+    damage: 10,
+    rate: 1,
     range: 2.85,
     hotkey: "4",
   },
@@ -1549,7 +1549,7 @@ export default function NatureDefenseGame({
             damageEnemy(
               game,
               current,
-              stats.damage * Math.pow(0.78, index),
+              stats.damage * Math.pow(0.82, index),
               tower,
             );
             game.projectiles.push({

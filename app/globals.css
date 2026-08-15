@@ -1106,6 +1106,7 @@ body {
 
 .tower-actions button {
   margin-top: 0;
+  white-space: nowrap;
 }
 
 .tower-popover button:disabled {
@@ -2118,7 +2119,7 @@ body {
 }
 
 .tower-popover {
-  min-width: 205px;
+  width: 245px;
 }
 
 .tower-popover strong {
